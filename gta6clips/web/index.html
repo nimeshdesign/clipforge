@@ -46,6 +46,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 <span id="bud" class="pill"></span>
 <span id="yt" class="pill"></span></header>
 <nav id="nav"><a href="#clips" class="on">Clips</a><a href="#sources">Sources &amp; jobs</a><a href="#insights">Insights</a><a href="#prompts">Prompts</a></nav>
+<div id="nokey" class="card" style="display:none;margin:14px 20px 0;border-color:var(--warn)"><b>No Gemini key set.</b> <span class="mut">Clipping, captions and posting all work. Titles, descriptions and tags use built-in templates, thumbnails are a game frame with text, and the humour agent is off. Add a key in <code>secrets/keys.env</code> (see README) for AI versions.</span></div>
 <main>
 <section class="tab" id="t-sources"><div class="two">
  <div class="card"><h2>Clip a video</h2>
@@ -144,7 +145,7 @@ ${c.thumb_prompt?`<label>Thumbnail brief (written by Gemini from the art-directo
 function mini(c){const star=`<span class="pill ${c.star?'ok':''}" style="left:auto;right:6px;cursor:pointer" title="${esc(c.hype_label||'star this clip')}" onclick="starTog('${c.id}',${!c.star},event)">${c.star?'⭐':'☆'}${c.hype!=null?' '+c.hype:''}</span>`;const st=c.status==='posted'?'<span class="pill ok">posted</span>':c.approved?'<span class="pill ok">approved</span>':'<span class="pill new">review</span>';
  return `<div class="mini" onclick="openM('${c.id}')"><div class="im" style="background-image:url('/media/${c.id}/${c.thumbnail?'thumbnail.jpg?v='+c.thumb_v:'clip.jpg'}')">${st}${star}</div><div class="tt">${esc(c.title)}</div></div>`}
 let PRIV='private';
-async function poll(force){try{const s=await api('/state');CL=s.clips;KEYS=s.keys;BUD=s.budget;if(TAB==='insights')drawIns();PRIV=s.youtube.privacy;
+async function poll(force){try{const s=await api('/state');CL=s.clips;KEYS=s.keys;$('nokey').style.display=s.keys.gemini?'none':'block';BUD=s.budget;if(TAB==='insights')drawIns();PRIV=s.youtube.privacy;
  $('mode').value=s.mode;$('privacy').value=s.youtube.privacy;$('folder').textContent=s.folder;
  $('bud').innerHTML='AI $'+s.budget.spent.toFixed(2)+' / $'+s.budget.cap;$('bud').className='pill '+(s.budget.spent>=s.budget.cap?'s-error':s.budget.warn?'s-running':'');$('bud').title=JSON.stringify(s.budget.by)+' | calls '+s.budget.calls+' | tokens in/out '+s.budget.tokens_in+'/'+s.budget.tokens_out;$('ap').checked=s.autopost.enabled;$('apmsg').textContent=s.autopost.enabled?'· '+s.autopost.msg+(s.autopost.posted_in_window!=null?` (${s.autopost.posted_in_window}/${s.autopost.max} per ${s.autopost.hours}h)`:''):'';
  $('yt').innerHTML=s.youtube.authed?`YouTube ✓ ${esc(s.youtube.channel)} · <a href="#" onclick="ylogout();return false">log out</a>`:(s.youtube.configured?'<a href="#" onclick="yauth();return false">Log in with YouTube</a>':'YouTube: add secrets/client_secret.json');

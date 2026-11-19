@@ -84,6 +84,8 @@ Open <http://localhost:8800>. On first run `config.example.yaml` is copied to `c
 
 You need three things at most. Only **A** is required to post; the app still makes clips without any key (titles and SEO fall back to built-in templates, thumbnails to a frame with text).
 
+**No keys at all? You can still clip.** Download, scoring, captions, 9:16 render and the review UI need no key. Without Gemini, titles and descriptions come from built-in templates, thumbnails are a game frame with a headline, and the humour agent is skipped (clips are kept by score). Add a key later and nothing else changes.
+
 | Feature | What you need | Cost |
 |---|---|---|
 | Post to YouTube | OAuth client (section A) | free, 10,000 quota units/day |
