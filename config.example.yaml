@@ -60,6 +60,7 @@ seo:
   credit_source: true
 live:
   chunk_seconds: 600
+  max_keep_gb: 10          # raw stream chunks above this are deleted, oldest already-clipped first
   check_every_seconds: 90
   streams: []
 youtube:

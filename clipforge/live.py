@@ -2,7 +2,7 @@
 queue every finished chunk for clipping - so clips are ready while the stream is still running."""
 import subprocess, sys, threading, time, re
 from pathlib import Path
-from . import config, pipeline, store
+from . import config, pipeline, store, cleanup
 
 _procs = {}      # url -> Popen
 _done = set()    # chunks already queued
@@ -79,6 +79,9 @@ def loop():
     while True:
         try:
             tick()
+            r = cleanup.run()
+            if r["deleted"]:
+                print(f"cleanup: freed {r['freed_gb']} GB ({r['deleted']} old chunks), live folder now {r['after_gb']} GB")
         except Exception as e:
             print("live tick error:", e)
         time.sleep(config.load()["live"]["check_every_seconds"])

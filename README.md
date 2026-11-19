@@ -180,6 +180,13 @@ Everything lives in `config.yaml` (copied from [`config.example.yaml`](config.ex
 - The humour agent sends only about 200 characters of captions for at most 6 candidate moments per chunk, one call per chunk, with Gemini thinking set to minimal.
 - Every call is logged in `data/usage.json`. When estimated spend reaches `budget.daily_usd`, AI calls stop and free fallbacks are used. Prices are estimates in `budget.prices_per_million`, so adjust them if Google changes rates.
 
+## Disk cleanup for live recordings
+Raw stream chunks are large. `live.max_keep_gb` (default 10) caps the `data/live/` folder: while the server runs it deletes the oldest chunks that have **already been clipped** until the folder fits. Unprocessed or still-recording chunks are never deleted, and finished clips in `clips/` are never touched. Run it by hand any time:
+```bash
+.venv/bin/python -m clipforge.cleanup --dry-run   # preview
+.venv/bin/python -m clipforge.cleanup --max-gb 5  # one-off smaller cap
+```
+
 ## Auto-posting rules
 Switch **Auto-post** on in the header. The scheduler checks every minute and:
 - posts at most `max_per_window` clips per `window_hours` (default 2 per 4 hours) with at least `min_gap_minutes` between posts;
