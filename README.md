@@ -1,10 +1,10 @@
-# GTA6 Clipper: automatic GTA 6 clip maker and YouTube Shorts uploader
+# ClipForge: AI livestream and video clipper for YouTube Shorts
 
-**Turn GTA 6 videos and live streams into captioned YouTube Shorts, with SEO titles, descriptions, tags and AI thumbnails, then review and post them with one click.**
+**Turn any game video or live stream into captioned vertical Shorts with SEO titles, descriptions, tags and AI thumbnails, then review and post them with one click.** Ships tuned for GTA 6, and works for any game or streamer by editing the keyword list in `config.yaml`.
 
-GTA6 Clipper is a self-hosted, open-source **AI video clipper** for GTA 6 content. It records live streams, downloads uploaded videos, finds the funniest and loudest moments, renders vertical 9:16 Shorts with word-accurate captions and a face-cam layout, and uploads to YouTube through the official **YouTube Data API v3**. A local web UI lets you preview every clip, edit the metadata and thumbnail prompt, and press **Post**.
+ClipForge is a self-hosted, open-source **AI video clipper**. It records live streams, downloads uploaded videos, finds the funniest and loudest moments, renders 9:16 Shorts with word-accurate captions and a face-cam layout, and uploads through the official **YouTube Data API v3**. A local web UI lets you preview every clip, edit the metadata and thumbnail prompt, and press **Post**.
 
-> Keywords: GTA 6 clips, GTA VI shorts generator, automatic video clipper, livestream clipper, YouTube Shorts automation, YouTube Data API upload, Gemini thumbnail generator, Nano Banana thumbnails, faster-whisper captions, yt-dlp, FastAPI.
+> Keywords: AI video clipper, livestream clipper, YouTube Shorts automation, auto clip highlights, Opus Clip alternative, GTA 6 clips, Twitch and Kick VOD clipper, YouTube Data API upload, Gemini thumbnail generator, Nano Banana, faster-whisper captions, yt-dlp, FastAPI.
 
 ![status](https://img.shields.io/badge/status-beta-orange) ![python](https://img.shields.io/badge/python-3.10%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -71,8 +71,8 @@ Install on Debian/Ubuntu: `sudo apt install ffmpeg nodejs python3-venv`. On macO
 
 ## Quick start
 ```bash
-git clone <your-fork-url> gta6clips
-cd gta6clips
+git clone <your-fork-url> clipforge
+cd clipforge
 cp secrets/keys.env.example secrets/keys.env     # then paste your Gemini key (see section B)
 ./run.sh                                         # installs dependencies, starts the server
 ```
@@ -98,9 +98,9 @@ You need three things at most. Only **A** is required to post; the app still mak
 2. Click the project picker at the top, then **New project**. Name it (for example `gta6-clipper`) and create it. Make sure it is selected.
 3. Go to **APIs & Services > Library**, search **YouTube Data API v3** and click **Enable**.
 4. Go to **APIs & Services > OAuth consent screen** (newer consoles call it **Google Auth Platform**).
-   - **Branding / App information:** app name `GTA6 Clipper`, your email as support and developer contact.
+   - **Branding / App information:** app name `ClipForge`, your email as support and developer contact.
    - **Audience:** user type **External**. Leave the publishing status as **Testing**.
-   - **Test users:** click **Add users** and add the Google account you will log in with. **This step is the fix for "Access blocked: GTA6 Clipper has not completed the Google verification process".** Only listed test users can log in while the app is in Testing.
+   - **Test users:** click **Add users** and add the Google account you will log in with. **This step is the fix for "Access blocked: ClipForge has not completed the Google verification process".** Only listed test users can log in while the app is in Testing.
    - **Data access (scopes):** add `https://www.googleapis.com/auth/youtube.upload` and `https://www.googleapis.com/auth/youtube.readonly`.
 5. Go to **APIs & Services > Credentials > Create credentials > OAuth client ID**. Choose application type **Desktop app**, name it, create it, then **Download JSON**.
 6. Save the file as `secrets/client_secret.json` in this project.
@@ -189,7 +189,7 @@ Switch **Auto-post** on in the header. The scheduler checks every minute and:
 
 ## Project layout
 ```
-gta6clips/
+clipforge/
   server.py        FastAPI app and REST API
   pipeline.py      job queue and the clip pipeline
   live.py          live stream recorder and chunk queue

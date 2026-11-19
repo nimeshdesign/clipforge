@@ -1,0 +1,22 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements.txt
+      - run: python -m compileall -q clipforge
+      - name: Server imports and serves the UI
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from clipforge.server import app
+          c = TestClient(app)
+          assert c.get("/").status_code == 200
+          assert c.get("/api/state").status_code == 200
+          PY
+      - name: No secrets tracked
+        run: test -z "$(git ls-files secrets | grep -v -e README.md -e '\.example$')"

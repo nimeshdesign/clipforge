@@ -1,4 +1,4 @@
-# GTA6 Clipper settings. Copied to config.yaml (git-ignored) on first run - edit that copy, or use the web UI.
+# ClipForge settings. Copied to config.yaml (git-ignored) on first run - edit that copy, or use the web UI.
 clips_dir: clips
 clip:
   mode: shorts

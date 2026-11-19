@@ -1,4 +1,4 @@
-"""GTA6 Clipper - web UI + API.  Run: ./run.sh  then open http://localhost:8800"""
+"""ClipForge - web UI + API.  Run: ./run.sh  then open http://localhost:8800"""
 import threading
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from . import usage, generate, config, pipeline, live, store, seo, youtube, poster, thumbnails, autopost, ai
 
 WEB = Path(__file__).parent / "web"
-app = FastAPI(title="GTA6 Clipper")
+app = FastAPI(title="ClipForge")
 
 
 class JobIn(BaseModel):

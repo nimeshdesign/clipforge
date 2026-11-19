@@ -1,6 +1,6 @@
 """YouTube Data API v3 upload (videos.insert, resumable) + OAuth.
 Setup: Google Cloud console -> enable "YouTube Data API v3" -> OAuth client ID (Desktop app)
--> download JSON to secrets/client_secret.json -> run `python -m gta6clips.youtube auth`."""
+-> download JSON to secrets/client_secret.json -> run `python -m clipforge.youtube auth`."""
 import json, datetime
 from . import config, store
 
@@ -113,4 +113,4 @@ if __name__ == "__main__":
     elif sys.argv[1:2] == ["upload"]:
         print(upload(sys.argv[2])["youtube_url"])
     else:
-        print("usage: python -m gta6clips.youtube auth | upload <clip_id>")
+        print("usage: python -m clipforge.youtube auth | upload <clip_id>")
