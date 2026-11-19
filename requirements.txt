@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+yt-dlp
+numpy
+faster-whisper
+google-api-python-client
+google-auth-oauthlib
+anthropic
+pyyaml
+opencv-python-headless<5

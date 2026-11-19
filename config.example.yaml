@@ -1,0 +1,114 @@
+# GTA6 Clipper settings. Copied to config.yaml (git-ignored) on first run - edit that copy, or use the web UI.
+clips_dir: clips
+clip:
+  mode: shorts
+  min_seconds: 15
+  target_seconds: 30
+  max_seconds: 55
+  max_per_source: 8
+  captions: true
+  min_score: 0.25
+asr:
+  model: base.en
+weights:
+  loudness: 0.35
+  jump: 0.25
+  heatmap: 0.25
+  keywords: 0.15
+keywords:
+- gta 6
+- gta vi
+- vice city
+- jason
+- lucia
+- leonida
+- trailer
+- leak
+- release date
+- no way
+- oh my god
+- omg
+- insane
+- crazy
+- wtf
+- let's go
+- holy
+- unbelievable
+- confirmed
+- mission
+- chase
+- shootout
+- heist
+seo:
+  provider: auto
+  model: claude-haiku-5-5
+  base_tags:
+  - GTA 6
+  - GTA VI
+  - Grand Theft Auto 6
+  - GTA 6 gameplay
+  - GTA 6 clips
+  - Rockstar Games
+  - Vice City
+  - GTA 6 trailer
+  - GTA 6 news
+  - gaming shorts
+  base_hashtags:
+  - '#GTA6'
+  - '#GTAVI'
+  - '#Shorts'
+  credit_source: true
+live:
+  chunk_seconds: 600
+  check_every_seconds: 90
+  streams: []
+youtube:
+  privacy: private
+  category_id: '20'
+  made_for_kids: false
+  auto_upload: false
+  max_uploads_per_day: 6
+thumbnail:
+  enabled: true
+  provider: auto
+  model: gemini-2.5-flash-image
+  corner_crop: 0.92
+ai:
+  backend: aistudio
+  vertex_project: ''
+  vertex_location: global
+  gemini_text_model: gemini-3-flash-preview
+autopost:
+  enabled: false
+  max_per_window: 2
+  window_hours: 4
+  min_gap_minutes: 45
+  idle_hours: 3
+agent:
+  model: gemini-3-flash-preview
+  min_hype: 7
+  only_starred: true
+  max_candidates: 6
+  caption_chars: 200
+budget:
+  daily_usd: 10
+  warn_at: 0.8
+  prices_per_million:
+    gemini-3-flash-preview:
+      in: 0.5
+      out: 3.0
+    gemini-2.5-flash:
+      in: 0.3
+      out: 2.5
+    gemini-2.5-flash-image:
+      in: 0.3
+      out: 2.5
+      image_out: 30.0
+    gemini-3-pro-image-preview:
+      in: 2.0
+      out: 12.0
+      image_out: 120.0
+    default:
+      in: 1.0
+      out: 10.0
+      image_out: 120.0
