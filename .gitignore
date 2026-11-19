@@ -1,0 +1,18 @@
+# secrets - never commit
+secrets/*
+!secrets/*.example
+!secrets/README.md
+.env
+*.env
+token.json
+client_secret*.json
+
+# local settings & runtime data
+config.yaml
+data/
+clips/
+
+# python
+.venv/
+__pycache__/
+*.pyc
