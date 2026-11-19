@@ -1,0 +1,159 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GTA6 Clipper</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--line:#2a2f3a;--tx:#e8eaf0;--mut:#8b93a5;--acc:#ff4d8d;--ok:#3ecf8e;--warn:#f5a623}
+@media(prefers-color-scheme:light){:root{--bg:#f4f5f8;--card:#fff;--line:#dde0e8;--tx:#15181f;--mut:#667}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:18px;margin:0;flex:1}h1 b{color:var(--acc)}
+main{max-width:1200px;margin:0 auto;padding:20px;display:grid;gap:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 12px}
+input,textarea,select{width:100%;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit}
+textarea{resize:vertical}
+button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer;font-weight:600}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--line)}button.del{background:transparent;color:#e5484d;border:1px solid var(--line)}
+button:disabled{opacity:.5}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>input{flex:1;min-width:220px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:800px){.two{grid-template-columns:1fr}}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.s-running,.s-recording{color:var(--warn);border-color:var(--warn)}.s-done{color:var(--ok);border-color:var(--ok)}.s-error{color:#e5484d;border-color:#e5484d}
+.job{padding:8px 0;border-top:1px solid var(--line);font-size:13px}.job:first-child{border:0}.log{color:var(--mut);font-size:12px;margin-top:3px;word-break:break-word}
+.clips{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.clip video{width:100%;max-height:420px;background:#000;border-radius:8px}.clip label{font-size:12px;color:var(--mut);display:block;margin:8px 0 3px}
+.mut{color:var(--mut);font-size:13px}.url{word-break:break-all}a{color:var(--acc)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.mini{cursor:pointer;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}.mini:hover{border-color:var(--acc)}
+.mini .im{aspect-ratio:9/16;background:#000 center/cover;position:relative}.mini .im span{position:absolute;left:6px;top:6px}
+.mini .tt{padding:8px;font-size:12px;line-height:1.3;max-height:5.2em;overflow:hidden}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.new{color:var(--warn);border-color:var(--warn)}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+#modal.on{display:flex}.box{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:960px;width:100%;max-height:94vh;overflow:auto;display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:18px;padding:18px}
+@media(max-width:760px){.box{grid-template-columns:1fr}}
+.box video{width:100%;max-height:66vh;background:#000;border-radius:10px}.box label{font-size:12px;color:var(--mut);display:block;margin:10px 0 3px}
+.thumb{width:100%;max-width:200px;border-radius:8px;margin-top:6px;border:1px solid var(--line)}.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+nav{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);overflow:auto}
+nav a{padding:10px 14px;color:var(--mut);text-decoration:none;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}nav a.on{color:var(--tx);border-color:var(--acc)}
+.tab{display:none}.tab.on{display:grid;gap:20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}.kpi b{display:block;font-size:22px}.kpi span{font-size:12px;color:var(--mut)}
+.br{display:grid;grid-template-columns:130px 1fr 80px;gap:8px;align-items:center;font-size:13px;margin:5px 0}.br .bar{height:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--line)}th{color:var(--mut);font-weight:600;border:0}
+.hint{font-size:12px;color:var(--mut);margin:4px 0 0}
+</style></head><body>
+<header><h1><b>GTA6</b> Clipper</h1>
+<span class="mut">Format</span><select id="mode" style="width:auto"><option value="shorts">Shorts 9:16</option><option value="landscape">Landscape 16:9</option></select>
+<span class="mut">Upload as</span><select id="privacy" style="width:auto"><option>private</option><option>unlisted</option><option>public</option></select>
+<label class="pill" style="cursor:pointer"><input type="checkbox" id="ap" style="width:auto;vertical-align:middle"> Auto-post <span id="apmsg"></span></label>
+<span id="bud" class="pill"></span>
+<span id="yt" class="pill"></span></header>
+<nav id="nav"><a href="#clips" class="on">Clips</a><a href="#sources">Sources &amp; jobs</a><a href="#insights">Insights</a><a href="#prompts">Prompts</a></nav>
+<main>
+<section class="tab" id="t-sources"><div class="two">
+ <div class="card"><h2>Clip a video</h2>
+  <div class="row"><input id="url" placeholder="YouTube / Twitch VOD / Kick URL"><button onclick="addJob()">Clip it</button></div>
+  <label class="mut"><input type="checkbox" id="au" style="width:auto"> upload clips automatically when ready</label>
+  <div id="jobs" style="margin-top:12px"></div></div>
+ <div class="card"><h2>Live streams (auto-record &amp; clip)</h2>
+  <div class="row"><input id="lurl" placeholder="twitch.tv/name · kick.com/name · youtube.com/@x/live"><input id="lname" placeholder="label (optional)" style="max-width:150px;min-width:100px"><button onclick="addLive()">Watch</button></div>
+  <div id="live" style="margin-top:12px"></div>
+  <p class="mut">Records in chunks while live, clips each chunk automatically.</p></div>
+</div></section>
+<section class="tab on" id="t-clips"><div class="card"><div class="row"><h2 style="flex:1;margin:0">Clips <span id="count"></span></h2><span class="mut url" id="folder"></span></div>
+<div class="row" style="margin-top:12px"><button class="sec" id="fstar" onclick="setF('star')">⭐ Starred only</button>
+<select id="fsrc" style="width:auto" onchange="setF('src',this.value)"><option value="">All sources</option></select>
+<select id="fsort" style="width:auto" onchange="setF('sort',this.value)"><option value="new">Sort: newest</option><option value="hype">Sort: humour agent rating</option><option value="score">Sort: clip score</option><option value="star">Sort: starred first</option></select><span class="mut" id="shown"></span></div>
+<div id="clips" class="cards" style="margin-top:12px"></div></div></section>
+<section class="tab" id="t-insights">
+ <div class="card"><h2>Overview</h2><div class="kpis" id="kpis"></div></div>
+ <div class="two"><div class="card"><h2>AI spend today by purpose</h2><div id="spend"></div><p class="hint" id="spendnote"></p></div>
+ <div class="card"><h2>Last 7 days</h2><div id="days"></div></div></div>
+ <div class="card"><h2>By source</h2><div style="overflow:auto"><table id="bysrc"></table></div></div>
+</section>
+<section class="tab" id="t-prompts"><div class="card"><h2>Thumbnail art-director prompt</h2>
+ <p class="mut">This is the instruction sent to Gemini together with three game frames and the clip caption. Gemini answers with the image brief, which Nano Banana then renders. Keep the <code>{format_spec}</code> placeholder: the portrait/landscape rules are inserted there. Changes apply to every thumbnail made from now on; you can still edit each clip's own brief in its review dialog.</p>
+ <textarea id="dir" rows="22" style="font:13px/1.5 ui-monospace,monospace" oninput="dirDirty=true"></textarea>
+ <div class="row" style="margin-top:10px"><button onclick="saveDir()">Save prompt</button><button class="sec" onclick="resetDir()">Reset to default</button><span class="mut" id="dirmsg"></span></div></div></section>
+</main>
+<div id="modal" onclick="if(event.target===this)closeM()"><div class="box" id="mbox"></div></div>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=(p,m='GET',b)=>fetch('/api'+p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async r=>{if(!r.ok)throw new Error((await r.json()).detail||r.statusText);return r.json()});
+let editing=false,sig='',dirDirty=false,TAB='clips';
+function tab(n){TAB=n;for(const a of document.querySelectorAll('#nav a'))a.classList.toggle('on',a.hash==='#'+n);for(const t of document.querySelectorAll('.tab'))t.classList.toggle('on',t.id==='t-'+n);if(n==='prompts'&&!dirDirty)loadDir();if(n==='insights')drawIns()}
+window.onhashchange=()=>tab((location.hash||'#clips').slice(1));
+async function loadDir(){const r=await api('/prompts/thumbnail_director');$('dir').value=r.text;$('dirmsg').textContent=r.custom?'Using your edited version':'Using the default';dirDirty=false}
+async function saveDir(){try{await api('/prompts/thumbnail_director','PUT',{text:$('dir').value});dirDirty=false;$('dirmsg').textContent='Saved - used for the next thumbnail'}catch(e){alert(e.message)}}
+async function resetDir(){if(!confirm('Discard your edits and restore the default prompt?'))return;const r=await api('/prompts/thumbnail_director','DELETE');$('dir').value=r.text;dirDirty=false;$('dirmsg').textContent='Default restored'}
+const bar=(v,m,col)=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,v/m*100))}%;${col?'background:'+col:''}"></i></div>`;
+let BUD=null;
+function drawIns(){if(!BUD)return;const n=f=>CL.filter(f).length,srcs=[...new Set(CL.map(srcOf))];
+ $('kpis').innerHTML=[['Clips',CL.length],['Needs review',n(c=>c.status!=='posted'&&!c.approved)],['Approved',n(c=>c.approved&&c.status!=='posted')],['Posted',n(c=>c.status==='posted')],['Starred',n(c=>c.star)],['Generated (SEO + thumbnail)',n(c=>c.generated)],['AI calls today',BUD.calls],['Tokens in / out',BUD.tokens_in+' / '+BUD.tokens_out]].map(([a,b])=>`<div class="kpi"><b>${b}</b><span>${a}</span></div>`).join('');
+ const by=Object.entries(BUD.by).sort((a,b)=>b[1].usd-a[1].usd),names={thumb_brief:'Thumbnail brief',thumbnail:'Thumbnail image',agent:'Humour agent',seo:'SEO text',title:'Titles',judge:'Content check'};
+ $('spend').innerHTML=by.map(([k,v])=>`<div class="br"><span>${esc(names[k]||k)}</span>${bar(v.usd,Math.max(BUD.spent,.0001))}<span class="mut">$${v.usd.toFixed(3)} · ${v.calls}x</span></div>`).join('')||'<span class="mut">No AI calls yet today.</span>';
+ $('spendnote').textContent=`$${BUD.spent.toFixed(3)} of the $${BUD.cap} daily cap (${(BUD.spent/BUD.cap*100).toFixed(1)}%). Estimated from token counts; at the cap AI calls stop and free templates take over.`;
+ const d=Object.entries(BUD.days),mx=Math.max(...d.map(x=>x[1]),.01);$('days').innerHTML=d.map(([k,v])=>`<div class="br"><span>${k.slice(5)}</span>${bar(v,mx)}<span class="mut">$${v.toFixed(2)}</span></div>`).join('');
+ $('bysrc').innerHTML='<tr><th>Source</th><th>Clips</th><th>Starred</th><th>Avg agent rating</th><th>Posted</th></tr>'+srcs.map(s=>{const l=CL.filter(c=>srcOf(c)===s),h=l.filter(c=>c.hype!=null);return `<tr><td>${esc(s)}</td><td>${l.length}</td><td>${l.filter(c=>c.star).length}</td><td>${h.length?(h.reduce((a,c)=>a+c.hype,0)/h.length).toFixed(1):'-'}</td><td>${l.filter(c=>c.status==='posted').length}</td></tr>`}).join('')}
+async function addJob(){if(!$('url').value)return;await api('/jobs','POST',{url:$('url').value,auto_upload:$('au').checked});$('url').value='';poll()}
+async function addLive(){if(!$('lurl').value)return;await api('/live','POST',{url:$('lurl').value,name:$('lname').value});$('lurl').value='';$('lname').value='';poll()}
+async function agentTog(u,on){await api('/live/agent?url='+encodeURIComponent(u)+'&enabled='+on,'POST');poll()}
+async function rmLive(u){await api('/live?url='+encodeURIComponent(u),'DELETE');poll()}
+for(const k of ['mode','privacy'])$(k).onchange=e=>api('/settings/'+k+'?value='+e.target.value,'POST');
+let CL=[],cur=null,KEYS={};
+let F={star:false,src:'',sort:'new'};try{Object.assign(F,JSON.parse(localStorage.getItem('f')||'{}'))}catch(e){}
+function setF(k,v){if(k==='star')F.star=!F.star;else F[k]=v;try{localStorage.setItem('f',JSON.stringify(F))}catch(e){}sig='';drawClips()}
+async function starTog(id,v,ev){if(ev)ev.stopPropagation();await api('/clips/'+id+'/star?value='+v,'POST');poll(true)}
+function srcOf(c){return c.stream||'Uploaded videos'}
+function drawClips(){let l=CL.filter(c=>(!F.star||c.star)&&(!F.src||srcOf(c)===F.src));
+ const k={new:(a,b)=>b.id<a.id?-1:1,hype:(a,b)=>(b.hype??-1)-(a.hype??-1),score:(a,b)=>b.score-a.score,star:(a,b)=>(b.star?1:0)-(a.star?1:0)||(b.hype??-1)-(a.hype??-1)}[F.sort];
+ l=[...l].sort(k);const srcs=[...new Set(CL.map(srcOf))];
+ $('fsrc').innerHTML='<option value="">All sources</option>'+srcs.map(s=>`<option ${F.src===s?'selected':''}>${esc(s)}</option>`).join('');$('fsort').value=F.sort;
+ $('fstar').className=F.star?'':'sec';$('shown').textContent=l.length+' of '+CL.length;
+ $('clips').innerHTML=l.map(mini).join('')||'<span class="mut">No clips match.</span>'}
+const byId=id=>CL.find(c=>c.id===id);
+async function save(id){const g=n=>$(n).value;await api('/clips/'+id,'PUT',{title:g('mt'),description:g('md'),tags:g('mg').split(',').map(x=>x.trim()).filter(Boolean)});await api('/clips/'+id+'/privacy?value='+$('mp').value,'POST');editing=false}
+async function gen(id,b){b.disabled=true;b.textContent='Generating…';try{await save(id);await api('/clips/'+id+'/generate','POST')}catch(e){alert(e.message)}editing=false;poll(true)}
+async function regen(id){await api('/clips/'+id+'/seo','POST');editing=false;poll(true)}
+async function thumb(id,b,keep){b.disabled=true;b.textContent='Generating…';try{await api('/clips/'+id+'/thumbnail','POST',{prompt:keep?$('mtp').value:null})}catch(e){alert(e.message)}poll(true)}
+async function approve(id,v){await api('/clips/'+id+'/approve?value='+v,'POST');poll(true)}
+async function post(id){try{await save(id);await api('/clips/'+id+'/upload','POST')}catch(e){alert(e.message)}poll(true)}
+async function del(id){if(confirm('Delete this clip folder?')){await api('/clips/'+id,'DELETE');closeM();poll(true)}}
+async function yauth(){try{alert(await api('/youtube/auth','POST'))}catch(e){alert(e.message)}}
+async function ylogout(){await api('/youtube/logout','POST');poll(true)}
+$('ap').onchange=e=>api('/autopost?enabled='+e.target.checked,'POST').then(()=>poll(true));
+function openM(id){cur=id;editing=false;renderM(true)}
+function closeM(){cur=null;$('modal').classList.remove('on');$('mbox').innerHTML=''}
+function renderM(full){const c=byId(cur);if(!c){closeM();return}$('modal').classList.add('on');
+ const gen=c.generated!==undefined?c.generated:!!c.description;const p=c.post||{},posted=c.status==='posted',busy=p.state==='uploading'||p.state==='preparing';
+ const live=`<div id="mstat">${busy?`<div class="bar"><i style="width:${p.pct||0}%"></i></div><div class="mut">${p.state==='preparing'?'Making thumbnail…':'Uploading '+(p.pct||0)+'%'}</div>`:''}${p.state==='error'?`<div class="mut" style="color:#e5484d">${esc(p.error)}</div>`:''}${posted?`<div class="mut">Posted ✓ <a href="${c.youtube_url}" target="_blank">${c.youtube_url}</a>${c.thumb_error?'<br>Thumbnail not set: '+esc(c.thumb_error):''}</div>`:''}</div>`;
+ if(!full){$('mstat').outerHTML=live;return}
+ $('mbox').innerHTML=`<div><video controls autoplay src="/media/${c.id}/clip.mp4"></video><div class="mut" style="margin-top:6px">${c.duration}s · ${esc(srcOf(c))}${c.ai?` · AI ${c.ai.viral_score}/10${c.ai.relevant===false?' · <b>not GTA 6?</b>':''}`:''}</div>
+<h2 style="margin:14px 0 6px">Why this clip</h2>
+<div class="br"><span>Overall score</span>${bar(c.score,1)}<span class="mut">${c.score}</span></div>
+${c.signal!=null?`<div class="br"><span>Audio / visual</span>${bar(c.signal,1,'var(--warn)')}<span class="mut">${c.signal}</span></div><div class="br"><span>Keywords</span>${bar(c.kw,1,'var(--ok)')}<span class="mut">${c.kw}</span></div>`:''}
+${c.hype!=null?`<div class="br"><span>Humour agent</span>${bar(c.hype,10,'var(--acc)')}<span class="mut">${c.hype}/10</span></div><div class="hint">${esc(c.hype_label||'')}</div>`:'<div class="hint">Not rated by the humour agent.</div>'}
+${c.transcript?`<details style="margin-top:8px"><summary class="mut">Caption text</summary><div class="hint">${esc(c.transcript)}</div></details>`:''}</div>
+<div><div class="row"><h2 style="flex:1;margin:0">Review &amp; post</h2><button class="sec" onclick="closeM()">✕</button></div>
+<label>Title (<span id="tl">${c.title.length}</span>/100)</label><input id="mt" maxlength="100" value="${esc(c.title)}" oninput="editing=true;$('tl').textContent=this.value.length">
+${gen?'':`<div class="row" style="margin-top:12px"><button onclick="gen('${c.id}',this)">✨ Generate description, tags &amp; thumbnail</button></div><div class="mut" style="margin-top:4px">Only the title exists so far - nothing else is generated until you press this.</div>`}
+<label>Description</label><textarea id="md" rows="6" oninput="editing=true" ${gen?'':'placeholder="Not generated yet"'}>${esc(c.description)}</textarea>
+<label>Tags</label><textarea id="mg" rows="2" oninput="editing=true" ${gen?'':'placeholder="Not generated yet"'}>${esc(c.tags.join(', '))}</textarea>
+<label>Thumbnail</label>${c.thumbnail?`<img class="thumb" src="/media/${c.id}/thumbnail.jpg?v=${c.thumb_v||0}">`:'<div class="mut">None yet.</div>'}
+${c.thumb_prompt?`<label>Thumbnail brief (written by Gemini from the art-director prompt) - edit it, then "Re-make with my prompt" ${c.thumb_text?'· headline: <b>'+esc(c.thumb_text)+'</b>':''}</label><textarea id="mtp" rows="6">${esc(c.thumb_prompt)}</textarea><div class="hint">The art-director template itself is under <a href="#prompts" onclick="closeM()">Prompts</a>.</div>`:''}
+<div class="row" style="margin-top:6px">${gen?`<button class="sec" onclick="thumb('${c.id}',this)">${c.thumbnail?'New prompt + re-make':'Generate'} thumbnail</button>${c.thumb_prompt?`<button class="sec" onclick="thumb('${c.id}',this,true)">Re-make with my prompt</button>`:''}<button class="sec" onclick="regen('${c.id}')">Re-write SEO</button>`:''}
+<select id="mp" style="width:auto"><option ${((c.privacy||PRIV)==='private')?'selected':''}>private</option><option ${((c.privacy||PRIV)==='unlisted')?'selected':''}>unlisted</option><option ${((c.privacy||PRIV)==='public')?'selected':''}>public</option></select></div>
+<div class="row" style="margin-top:14px">${posted?'':`<button ${busy||!gen?'disabled':''} title="${gen?'':'Generate first'}" onclick="post('${c.id}')">Post to YouTube</button><button class="sec" onclick="save('${c.id}').then(()=>approve('${c.id}',${!c.approved}))">${c.approved?'✓ Approved for auto-queue (undo)':'Approve for auto-queue'}</button>`}<button class="sec" onclick="starTog('${c.id}',${!c.star})">${c.star?'⭐ Starred (undo)':'☆ Star'}</button><button class="del" onclick="del('${c.id}')">Delete</button></div>${c.hype!=null?`<div class="mut" style="margin-top:6px">Agent: ${c.hype}/10 - ${esc(c.hype_label||'')}</div>`:''}${live}</div>`}
+function mini(c){const star=`<span class="pill ${c.star?'ok':''}" style="left:auto;right:6px;cursor:pointer" title="${esc(c.hype_label||'star this clip')}" onclick="starTog('${c.id}',${!c.star},event)">${c.star?'⭐':'☆'}${c.hype!=null?' '+c.hype:''}</span>`;const st=c.status==='posted'?'<span class="pill ok">posted</span>':c.approved?'<span class="pill ok">approved</span>':'<span class="pill new">review</span>';
+ return `<div class="mini" onclick="openM('${c.id}')"><div class="im" style="background-image:url('/media/${c.id}/${c.thumbnail?'thumbnail.jpg?v='+c.thumb_v:'clip.jpg'}')">${st}${star}</div><div class="tt">${esc(c.title)}</div></div>`}
+let PRIV='private';
+async function poll(force){try{const s=await api('/state');CL=s.clips;KEYS=s.keys;BUD=s.budget;if(TAB==='insights')drawIns();PRIV=s.youtube.privacy;
+ $('mode').value=s.mode;$('privacy').value=s.youtube.privacy;$('folder').textContent=s.folder;
+ $('bud').innerHTML='AI $'+s.budget.spent.toFixed(2)+' / $'+s.budget.cap;$('bud').className='pill '+(s.budget.spent>=s.budget.cap?'s-error':s.budget.warn?'s-running':'');$('bud').title=JSON.stringify(s.budget.by)+' | calls '+s.budget.calls+' | tokens in/out '+s.budget.tokens_in+'/'+s.budget.tokens_out;$('ap').checked=s.autopost.enabled;$('apmsg').textContent=s.autopost.enabled?'· '+s.autopost.msg+(s.autopost.posted_in_window!=null?` (${s.autopost.posted_in_window}/${s.autopost.max} per ${s.autopost.hours}h)`:''):'';
+ $('yt').innerHTML=s.youtube.authed?`YouTube ✓ ${esc(s.youtube.channel)} · <a href="#" onclick="ylogout();return false">log out</a>`:(s.youtube.configured?'<a href="#" onclick="yauth();return false">Log in with YouTube</a>':'YouTube: add secrets/client_secret.json');
+ $('jobs').innerHTML=s.jobs.slice(0,6).map(j=>`<div class="job"><span class="pill s-${j.status}">${j.status}</span> <span class="url">${esc(j.target.split('/').slice(-1)[0].slice(0,60)||j.target)}</span> · ${j.clips.length} clips<div class="log">${esc(j.log.slice(-2).join(' › '))}</div></div>`).join('')||'<span class="mut">No jobs yet.</span>';
+ $('live').innerHTML=s.live.map(l=>`<div class="job row"><span class="pill s-${l.state}">${l.state}</span><span class="url" style="flex:1">${esc(l.name||l.url)}</span><label class="mut" title="One cheap AI call per 10-min chunk rates the loudest moments; hype ones become star clips"><input type="checkbox" style="width:auto" ${l.star_agent?'checked':''} onchange="agentTog('${esc(l.url)}',this.checked)"> ⭐ humour agent</label><button class="del" onclick="rmLive('${esc(l.url)}')">remove</button></div>`).join('')||'<span class="mut">No streams added.</span>';
+ $('count').textContent='('+s.clips.length+')';
+ const ns=s.clips.map(c=>c.id+c.star+c.hype+c.stream+c.status+c.approved+c.title+c.thumb_v).join('|');
+ if(ns!==sig){sig=ns;drawClips()}
+ if(cur){if(force&&!editing)renderM(true);else renderM(false)}
+}catch(e){}}
+tab((location.hash||'#clips').slice(1));poll();setInterval(poll,2500);
+</script></body></html>
