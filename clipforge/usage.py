@@ -13,7 +13,7 @@ class BudgetExceeded(Exception):
 
 def _load():
     try:
-        return json.loads(F.read_text())
+        return json.loads(F.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -63,7 +63,7 @@ def record(model, meta, tag):
         b["calls"] += 1
         for k in sorted(d)[:-30]:       # keep 30 days
             d.pop(k)
-        F.write_text(json.dumps(d, indent=1))
+        F.write_text(json.dumps(d, indent=1), encoding="utf-8")
 
 
 def summary():

@@ -26,14 +26,14 @@ def download(url, j):
     out = config.SOURCES / "%(id)s.%(ext)s"
     cmd = [sys.executable, "-m", "yt_dlp", "--js-runtimes", "node", "--no-playlist", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
            "--merge-output-format", "mp4", "--write-info-json", "-o", str(out), "--print", "after_move:filepath", url]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode:
         raise RuntimeError("yt-dlp failed: " + r.stderr[-300:])
     path = Path(r.stdout.strip().splitlines()[-1])
     info = {}
     ij = path.with_suffix(".info.json")
     if ij.exists():
-        info = json.loads(ij.read_text())
+        info = json.loads(ij.read_text(encoding="utf-8"))
     return path, info
 
 
@@ -63,7 +63,15 @@ def process(j):
     lay = layout_mod.get(path) if cfg_run["clip"]["mode"] == "shorts" else None
     _log(j, f"Face cam: {lay['cam'] if lay and lay['cam'] else 'not found'}")
     wins = analyze.find_clips(path, info, cfg_run, lambda m: _log(j, m))
-    if j["opts"].get("agent"):                       # humour agent: one cheap call rates this chunk's best moments
+    ai_picked = bool(wins) and all(w.get("picked_by") == "ai" for w in wins)
+    if j["opts"].get("agent") and ai_picked:         # the AI picker already rated these: reuse it, no second call
+        for w in wins:
+            w["hype"], w["label"] = w["viral"], w["reason"]
+            w["star"] = w["viral"] >= cfg_run["agent"]["min_hype"]
+        _log(j, f"AI picker rated {sum(1 for w in wins if w['star'])} hype moment(s)")
+        if cfg_run["agent"]["only_starred"]:
+            wins = [w for w in wins if w["star"]]
+    elif j["opts"].get("agent"):                     # humour agent: one cheap call rates this chunk's best moments
         n = agent.rate(wins, cfg_run)
         if n is None:
             _log(j, "Humour agent unavailable (budget/API) - keeping top 2 unrated moments")
@@ -80,9 +88,11 @@ def process(j):
         d.mkdir(parents=True, exist_ok=True)
         render.render(path, w["start"], w["end"], d / "clip.mp4", cfg_run["clip"]["mode"],
                       w["segments"], cfg_run["clip"]["captions"], lay)
-        dur = w["end"] - w["start"]
+        dur = round(w["end"] - w["start"], 1)
         subprocess.run([config.FFMPEG, "-y", "-v", "error", "-ss", str(dur * 0.4), "-i", str(d / "clip.mp4"), "-frames:v", "1", "-vf", "scale=360:-2", str(d / "clip.jpg")])
-        meta = {"title": seo.generate_title({"transcript": w["transcript"]}, cfg_run), "description": "", "tags": [], "thumb_text": ""}
+        title = w.get("title") or seo.generate_title({"transcript": w["transcript"]}, cfg_run)
+        meta = {"title": title, "description": "", "tags": [], "thumb_text": "",
+                "picked_by": w.get("picked_by", "signal"), "viral": w.get("viral"), "hook": w.get("hook"), "viral_reason": w.get("reason")}
         meta.update(id=cid, source=src, source_file=str(path.resolve()), peak=w["peak"], ai=None, stream=(j["opts"].get("title") if j["opts"].get("live") else None), stream_url=(j["opts"].get("url") if j["opts"].get("live") else None), status="new", approved=False, generated=False, star=bool(w.get("star")), hype=w.get("hype"), hype_label=w.get("label"), transcript=w["transcript"], start=w["start"], end=w["end"], score=w["score"], signal=round(w.get("signal",0),3), kw=round(w.get("kw",0),3), duration=dur,
                     mode=cfg_run["clip"]["mode"], created=datetime.datetime.now().isoformat(timespec="seconds"))
         store.save(cid, meta)

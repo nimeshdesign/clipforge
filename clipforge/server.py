@@ -165,7 +165,7 @@ def get_director():
 def put_director(b: PromptIn):
     if "{format_spec}" not in b.text:
         raise HTTPException(400, "Keep the {format_spec} placeholder - it is replaced by the portrait/landscape rules")
-    (config.DATA / "prompts" / "thumbnail_director.md").write_text(b.text)
+    (config.DATA / "prompts" / "thumbnail_director.md").write_text(b.text, encoding="utf-8")
     return "saved"
 
 

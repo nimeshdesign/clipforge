@@ -88,7 +88,7 @@ const bar=(v,m,col)=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100
 let BUD=null;
 function drawIns(){if(!BUD)return;const n=f=>CL.filter(f).length,srcs=[...new Set(CL.map(srcOf))];
  $('kpis').innerHTML=[['Clips',CL.length],['Needs review',n(c=>c.status!=='posted'&&!c.approved)],['Approved',n(c=>c.approved&&c.status!=='posted')],['Posted',n(c=>c.status==='posted')],['Starred',n(c=>c.star)],['Generated (SEO + thumbnail)',n(c=>c.generated)],['AI calls today',BUD.calls],['Tokens in / out',BUD.tokens_in+' / '+BUD.tokens_out]].map(([a,b])=>`<div class="kpi"><b>${b}</b><span>${a}</span></div>`).join('');
- const by=Object.entries(BUD.by).sort((a,b)=>b[1].usd-a[1].usd),names={thumb_brief:'Thumbnail brief',thumbnail:'Thumbnail image',agent:'Humour agent',seo:'SEO text',title:'Titles',judge:'Content check'};
+ const by=Object.entries(BUD.by).sort((a,b)=>b[1].usd-a[1].usd),names={thumb_brief:'Thumbnail brief',thumbnail:'Thumbnail image',agent:'Humour agent',picker:'Clip picker',seo:'SEO text',title:'Titles',judge:'Content check'};
  $('spend').innerHTML=by.map(([k,v])=>`<div class="br"><span>${esc(names[k]||k)}</span>${bar(v.usd,Math.max(BUD.spent,.0001))}<span class="mut">$${v.usd.toFixed(3)} · ${v.calls}x</span></div>`).join('')||'<span class="mut">No AI calls yet today.</span>';
  $('spendnote').textContent=`$${BUD.spent.toFixed(3)} of the $${BUD.cap} daily cap (${(BUD.spent/BUD.cap*100).toFixed(1)}%). Estimated from token counts; at the cap AI calls stop and free templates take over.`;
  const d=Object.entries(BUD.days),mx=Math.max(...d.map(x=>x[1]),.01);$('days').innerHTML=d.map(([k,v])=>`<div class="br"><span>${k.slice(5)}</span>${bar(v,mx)}<span class="mut">$${v.toFixed(2)}</span></div>`).join('');
@@ -129,6 +129,7 @@ function renderM(full){const c=byId(cur);if(!c){closeM();return}$('modal').class
  $('mbox').innerHTML=`<div><video controls autoplay src="/media/${c.id}/clip.mp4"></video><div class="mut" style="margin-top:6px">${c.duration}s · ${esc(srcOf(c))}${c.ai?` · AI ${c.ai.viral_score}/10${c.ai.relevant===false?' · <b>not GTA 6?</b>':''}`:''}</div>
 <h2 style="margin:14px 0 6px">Why this clip</h2>
 <div class="br"><span>Overall score</span>${bar(c.score,1)}<span class="mut">${c.score}</span></div>
+${c.viral!=null?`<div class="br"><span>AI picker</span>${bar(c.viral,10,'var(--acc)')}<span class="mut">${c.viral}/10</span></div><div class="hint">${esc(c.viral_reason||'')}${c.hook?`<br>Hook: “${esc(c.hook)}”`:''}</div>`:c.picked_by==='signal'?'<div class="hint">Picked by loudness (AI picker off or unavailable).</div>':''}
 ${c.signal!=null?`<div class="br"><span>Audio / visual</span>${bar(c.signal,1,'var(--warn)')}<span class="mut">${c.signal}</span></div><div class="br"><span>Keywords</span>${bar(c.kw,1,'var(--ok)')}<span class="mut">${c.kw}</span></div>`:''}
 ${c.hype!=null?`<div class="br"><span>Humour agent</span>${bar(c.hype,10,'var(--acc)')}<span class="mut">${c.hype}/10</span></div><div class="hint">${esc(c.hype_label||'')}</div>`:'<div class="hint">Not rated by the humour agent.</div>'}
 ${c.transcript?`<details style="margin-top:8px"><summary class="mut">Caption text</summary><div class="hint">${esc(c.transcript)}</div></details>`:''}</div>

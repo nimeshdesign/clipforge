@@ -10,7 +10,7 @@ from . import config
 
 def probe(path):
     r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration",
-                        "-of", "json", str(path)], capture_output=True, text=True)
+                        "-of", "json", str(path)], capture_output=True, text=True, encoding="utf-8", errors="replace")
     j = json.loads(r.stdout)
     return int(j["streams"][0]["width"]), int(j["streams"][0]["height"]), float(j["format"]["duration"])
 
@@ -58,7 +58,7 @@ def get(path):
     f = p.with_suffix(".layout.json")
     W, H, _ = probe(p)
     if f.exists():
-        d = json.loads(f.read_text())
+        d = json.loads(f.read_text(encoding="utf-8"))
     else:
         try:
             cam = detect_cam(p)
@@ -66,6 +66,6 @@ def get(path):
             print("cam detection failed:", e)
             cam = None
         d = {"cam": cam}
-        f.write_text(json.dumps(d))
+        f.write_text(json.dumps(d), encoding="utf-8")
     d["size"] = [W, H]
     return d

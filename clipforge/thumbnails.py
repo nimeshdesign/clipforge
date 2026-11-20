@@ -98,7 +98,7 @@ def make(cid, prompt=None):
         tf = Path(tempfile.mkdtemp()) / "t.txt"
         wds = (text or "GTA 6")[:28].split()
         half = (len(wds) + 1) // 2
-        tf.write_text(" ".join(wds[:half]) + "\n" + " ".join(wds[half:]))
+        tf.write_text(" ".join(wds[:half]) + "\n" + " ".join(wds[half:]), encoding="utf-8")
         pos = "y=170" if orient == "portrait" else "y=h-text_h-80"
         vf = (f"drawtext=fontfile={FONT}:textfile={tf}:fontsize={130 if orient == 'portrait' else 110}:fontcolor=white:borderw=10:"
               f"bordercolor=black:line_spacing=10:x=(w-text_w)/2:{pos},eq=saturation=1.3:contrast=1.08")

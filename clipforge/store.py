@@ -18,21 +18,21 @@ def save(cid, meta):
 def _save(cid, meta):
     d = folder(cid)
     d.mkdir(parents=True, exist_ok=True)
-    (d / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False))
-    (d / "title.txt").write_text(meta["title"])
-    (d / "description.txt").write_text(meta["description"])
-    (d / "tags.txt").write_text(", ".join(meta["tags"]))
+    (d / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+    (d / "title.txt").write_text(meta["title"], encoding="utf-8")
+    (d / "description.txt").write_text(meta["description"], encoding="utf-8")
+    (d / "tags.txt").write_text(", ".join(meta["tags"]), encoding="utf-8")
 
 
 def load(cid):
-    return json.loads((folder(cid) / "meta.json").read_text())
+    return json.loads((folder(cid) / "meta.json").read_text(encoding="utf-8"))
 
 
 def all_clips():
     out = []
     for d in sorted(config.clips_dir().iterdir(), reverse=True):
         if (d / "meta.json").exists():
-            out.append(json.loads((d / "meta.json").read_text()))
+            out.append(json.loads((d / "meta.json").read_text(encoding="utf-8")))
     return out
 
 
@@ -55,7 +55,7 @@ _PF = config.DATA / "processed.json"
 
 def _processed():
     try:
-        return set(json.loads(_PF.read_text()))
+        return set(json.loads(_PF.read_text(encoding="utf-8")))
     except Exception:
         return set()
 
@@ -68,4 +68,4 @@ def mark_processed(path):
     with _lock:
         p = _processed()
         p.add(str(path))
-        _PF.write_text(json.dumps(sorted(p)))
+        _PF.write_text(json.dumps(sorted(p)), encoding="utf-8")

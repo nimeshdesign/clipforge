@@ -35,7 +35,8 @@ ClipForge is a self-hosted, open-source **AI video clipper**. It records live st
 
 ## Features
 - **Two sources:** paste a YouTube, Twitch or Kick VOD link, or add live streams. Live streams are recorded in 10-minute chunks and clipped automatically. Several streams are processed in parallel.
-- **Moment detection:** every second is scored from loudness, sudden jumps in volume, YouTube's "most replayed" heatmap and hype keywords. The best non-overlapping moments become clips.
+- **AI clip picker:** the whole video is transcribed and Gemini reads the timestamped transcript, picking moments that open on a hook and end on the payoff. Cuts are snapped to sentence boundaries, and each clip gets a 0-10 virality rating, the reason, and a title. Costs about one cheap call per video (roughly $0.01 for 30 minutes). The prompt is in [`prompts/clip_picker.md`](prompts/clip_picker.md).
+- **Loudness fallback:** with no key, with the budget reached, or with `picker.mode: signal`, every second is scored from loudness, sudden jumps in volume, YouTube's "most replayed" heatmap and hype keywords. Each clip opens a few seconds before its peak.
 - **Word-exact captions:** faster-whisper word timestamps drive per-word highlighted captions (ASS), so the text matches the voice.
 - **Gameplay on top, face cam below:** OpenCV finds the streamer's face cam, the game is zoomed to fill the top panel and the cam is placed underneath. The detected box is cached in a `.layout.json` you can edit.
 - **Humour agent (opt-in per stream):** one cheap Gemini call rates each 10-minute chunk, creates clips for the hype moments and marks them with a star.
@@ -50,8 +51,8 @@ ClipForge is a self-hosted, open-source **AI video clipper**. It records live st
 ```
 URL or live stream
   -> yt-dlp download / ffmpeg segment recorder
-  -> signal scoring (loudness, jumps, heatmap, keywords)
-  -> faster-whisper word timestamps
+  -> faster-whisper transcript with word timestamps
+  -> AI picker chooses hook->payoff clips (fallback: loudness / jumps / heatmap / keywords)
   -> face-cam detection and 9:16 render with burned captions
   -> [optional] humour agent rates the chunk and stars clips
   -> clips/<id>/{clip.mp4, title.txt, description.txt, tags.txt, meta.json}
@@ -166,7 +167,10 @@ Everything lives in `config.yaml` (copied from [`config.example.yaml`](config.ex
 | `clip.mode` | `shorts` (9:16) or `landscape`. |
 | `clip.min_seconds / target_seconds / max_seconds` | Clip length range. |
 | `clip.max_per_source`, `clip.min_score` | How many clips per video and the minimum score. |
-| `weights`, `keywords` | Signal weights and hype words for moment scoring. |
+| `picker.mode` | `ai` (default; needs a Gemini key) or `signal` (loudness only, free). |
+| `picker.min_score`, `picker.model` | Minimum AI rating (0-10) to keep a clip, and the model that picks. |
+| `clip.hook_lead_seconds` | Loudness fallback: seconds kept before the peak. |
+| `weights`, `keywords` | Signal weights and hype words for the loudness fallback. |
 | `live.chunk_seconds` | Length of each recorded live chunk (default 600). |
 | `youtube.privacy` | Default privacy for uploads: `private`, `unlisted` or `public`. |
 | `youtube.max_uploads_per_day` | Safety limit to protect your API quota. |
@@ -176,7 +180,8 @@ Everything lives in `config.yaml` (copied from [`config.example.yaml`](config.ex
 | `thumbnail.corner_crop` | Fraction kept when cropping the Gemini watermark corner. |
 
 ## Cost control
-- Titles are the only thing generated automatically (a fraction of a cent each).
+- The AI clip picker makes one call per video (about $0.01 for 30 minutes of transcript), and its titles are reused, so no separate title call is needed.
+- Titles are the only other thing generated automatically (a fraction of a cent each).
 - The humour agent sends only about 200 characters of captions for at most 6 candidate moments per chunk, one call per chunk, with Gemini thinking set to minimal.
 - Every call is logged in `data/usage.json`. When estimated spend reaches `budget.daily_usd`, AI calls stop and free fallbacks are used. Prices are estimates in `budget.prices_per_million`, so adjust them if Google changes rates.
 

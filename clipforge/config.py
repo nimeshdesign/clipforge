@@ -13,12 +13,12 @@ PROMPTS = ROOT / "prompts"
 
 def load():
     if not CONFIG_FILE.exists() and CONFIG_EXAMPLE.exists():
-        CONFIG_FILE.write_text(CONFIG_EXAMPLE.read_text())
-    return yaml.safe_load(CONFIG_FILE.read_text()) or {}
+        CONFIG_FILE.write_text(CONFIG_EXAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
+    return yaml.safe_load(CONFIG_FILE.read_text(encoding="utf-8")) or {}
 
 
 def save(cfg):
-    CONFIG_FILE.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True))
+    CONFIG_FILE.write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
 
 def clips_dir():
@@ -40,7 +40,7 @@ FFMPEG = "/usr/bin/ffmpeg" if os.path.exists("/usr/bin/ffmpeg") else "ffmpeg"
 def _load_keys():
     f = SECRETS / "keys.env"   # lines like GEMINI_API_KEY=xxxx  /  ANTHROPIC_API_KEY=xxxx
     if f.exists():
-        for line in f.read_text().splitlines():
+        for line in f.read_text(encoding="utf-8").splitlines():
             if "=" in line and not line.strip().startswith("#"):
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip().strip("'\""))
@@ -52,4 +52,4 @@ _load_keys()
 def prompt(name):
     """Prompt template: your edited copy in data/prompts/ wins over the tracked default in prompts/."""
     mine = DATA / "prompts" / f"{name}.md"
-    return (mine if mine.exists() else PROMPTS / f"{name}.md").read_text()
+    return (mine if mine.exists() else PROMPTS / f"{name}.md").read_text(encoding="utf-8")

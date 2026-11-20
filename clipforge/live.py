@@ -16,7 +16,7 @@ def slug(u):
 
 def stream_url(u):
     r = subprocess.run([sys.executable, "-m", "yt_dlp", "--js-runtimes", "node", "-g", "-f", "bv*[height<=720]+ba/b[height<=720]/b", "--no-playlist", u],
-                       capture_output=True, text=True, timeout=60)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     return r.stdout.strip().splitlines() if r.returncode == 0 and r.stdout.strip() else None  # [video, audio] or [muxed]
 
 

@@ -24,14 +24,14 @@ def creds():
     c = Credentials.from_authorized_user_file(str(TOKEN), SCOPES)
     if not c.valid and c.refresh_token:
         c.refresh(Request())
-        TOKEN.write_text(c.to_json())
+        TOKEN.write_text(c.to_json(), encoding="utf-8")
     return c
 
 
 def auth():
     from google_auth_oauthlib.flow import InstalledAppFlow
     c = InstalledAppFlow.from_client_secrets_file(str(CLIENT), SCOPES).run_local_server(port=8765, open_browser=True)
-    TOKEN.write_text(c.to_json())
+    TOKEN.write_text(c.to_json(), encoding="utf-8")
     return channel()
 
 
@@ -43,13 +43,13 @@ def _yt():
 def channel():
     r = _yt().channels().list(part="snippet", mine=True).execute()
     name = (r.get("items") or [{}])[0].get("snippet", {}).get("title")
-    (config.SECRETS / "channel.txt").write_text(name or "")
+    (config.SECRETS / "channel.txt").write_text(name or "", encoding="utf-8")
     return name
 
 
 def channel_name():
     f = config.SECRETS / "channel.txt"
-    return f.read_text() if f.exists() else ""
+    return f.read_text(encoding="utf-8") if f.exists() else ""
 
 
 def logout():
@@ -58,7 +58,7 @@ def logout():
 
 def _times():
     try:
-        return json.loads(QUOTA.read_text()).get("times", [])
+        return json.loads(QUOTA.read_text(encoding="utf-8")).get("times", [])
     except Exception:
         return []
 
@@ -101,7 +101,7 @@ def upload(cid, publish_at=None, progress=None):
         except Exception as e:  # e.g. channel not phone-verified yet
             thumb_err = str(e)[:200]
     ts = _times() + [datetime.datetime.now().isoformat(timespec="seconds")]
-    QUOTA.write_text(json.dumps({"times": ts[-200:]}))
+    QUOTA.write_text(json.dumps({"times": ts[-200:]}), encoding="utf-8")
     return store.update(cid, youtube_id=resp["id"], youtube_url=f"https://youtu.be/{resp['id']}",
                         uploaded_at=ts[-1], status="posted", thumb_error=thumb_err)
 

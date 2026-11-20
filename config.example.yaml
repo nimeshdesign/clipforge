@@ -8,6 +8,12 @@ clip:
   max_per_source: 8
   captions: true
   min_score: 0.25
+  hook_lead_seconds: 4     # loudness fallback: seconds kept before the peak, so the clip opens on the action
+picker:
+  mode: ai                 # ai = an LLM reads the transcript and picks hook->payoff clips; signal = loudness only (free)
+  model: gemini-3-flash-preview
+  min_score: 6             # drop AI picks rated below this (0-10)
+  max_chars: 40000         # transcript characters per AI call; longer videos are split into several calls
 asr:
   model: base.en
 weights:

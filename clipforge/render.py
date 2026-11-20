@@ -88,7 +88,7 @@ def render(src, start, end, out, mode="shorts", segments=None, captions=True, la
     cmd = [FFMPEG, "-y", "-v", "error", "-ss", str(start), "-t", str(end - start), "-i", str(Path(src).resolve()),
            "-filter_complex", fc, "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", out.name]
-    r = subprocess.run(cmd, cwd=out.parent, capture_output=True, text=True)
+    r = subprocess.run(cmd, cwd=out.parent, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode:
         raise RuntimeError(r.stderr[-400:])
     return out
