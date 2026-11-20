@@ -220,7 +220,8 @@ def clip_privacy(cid: str, value: str):
 def yt_auth():
     if not youtube.configured():
         raise HTTPException(400, "Put your OAuth client JSON in secrets/client_secret.json first")
-    threading.Thread(target=youtube.auth, daemon=True).start()
+    if not youtube.start_auth():
+        return "A Google sign-in is already open in your browser - finish it there (it expires after 10 minutes)"
     return "Google sign-in opened in your browser"
 
 

@@ -29,11 +29,37 @@ def creds():
     return c
 
 
-def auth():
+import threading
+_auth_lock = threading.Lock()
+
+
+def auth_in_progress():
+    return _auth_lock.locked()
+
+
+def start_auth():
+    """For the web UI: start a sign-in in the background unless one is already open. Returns False if one is open.
+    The lock is taken here (not in the thread), so two quick clicks can't both start a sign-in."""
+    if not _auth_lock.acquire(blocking=False):
+        return False
+    threading.Thread(target=auth, kwargs={"locked": True}, daemon=True).start()
+    return True
+
+
+def auth(locked=False):
+    """Google sign-in in the browser. One at a time; an abandoned sign-in gives up after 10 minutes."""
     from google_auth_oauthlib.flow import InstalledAppFlow
-    c = InstalledAppFlow.from_client_secrets_file(str(CLIENT), SCOPES).run_local_server(port=8765, open_browser=True)
-    TOKEN.write_text(c.to_json(), encoding="utf-8")
-    return channel()
+    if not locked and not _auth_lock.acquire(blocking=False):
+        raise RuntimeError("A Google sign-in is already open")
+    try:
+        flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT), SCOPES)
+        c = flow.run_local_server(port=8765, open_browser=True, timeout_seconds=600)
+        if not c:
+            raise RuntimeError("Sign-in was not completed within 10 minutes")
+        TOKEN.write_text(c.to_json(), encoding="utf-8")
+        return channel()
+    finally:
+        _auth_lock.release()
 
 
 def _yt():

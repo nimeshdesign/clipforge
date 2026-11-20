@@ -68,6 +68,7 @@ live:
   chunk_seconds: 600
   max_keep_gb: 10          # raw stream chunks above this are deleted, oldest already-clipped first
   check_every_seconds: 90
+  sources_keep_days: 2      # downloaded source videos (data/sources) are deleted after this; clips are kept
   streams: []
 discover:                  # find source videos automatically (see clipforge/discover.py)
   enabled: false

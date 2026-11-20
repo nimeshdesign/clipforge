@@ -41,8 +41,44 @@ def run(max_gb=None, dry_run=False):
                 f.unlink(missing_ok=True)
                 f.with_suffix(".layout.json").unlink(missing_ok=True)
     left = total - freed
+    junk = _junk_chunks(dry_run)
+    src = _old_sources(dry_run)
     return {"before_gb": round(total / 1e9, 2), "after_gb": round(left / 1e9, 2), "freed_gb": round(freed / 1e9, 2),
-            "deleted": len(removed), "cap_gb": round(cap / 1e9, 2), "over_cap": left > cap, "dry_run": dry_run}
+            "deleted": len(removed), "cap_gb": round(cap / 1e9, 2), "over_cap": left > cap, "dry_run": dry_run,
+            "junk_chunks": junk, "sources_deleted": src["deleted"], "sources_freed_gb": src["freed_gb"]}
+
+
+def _junk_chunks(dry_run=False):
+    """Chunks under 1 MB that stopped growing are never clipped (fragments of an ended or broken stream): delete them."""
+    n, now = 0, time.time()
+    for f in _files():
+        st = f.stat()
+        if st.st_size < 1_000_000 and now - st.st_mtime > 600:
+            n += 1
+            if not dry_run:
+                f.unlink(missing_ok=True)
+                f.with_suffix(".layout.json").unlink(missing_ok=True)
+    return n
+
+
+def _old_sources(dry_run=False):
+    """Downloaded source videos (data/sources) older than live.sources_keep_days, once no job uses them.
+    Clips are separate files and keep working; thumbnails fall back to the clip when the source is gone."""
+    from . import pipeline
+    days = float(config.load()["live"].get("sources_keep_days", 2))
+    busy = {j["target"] for j in pipeline.JOBS.values() if j["status"] in ("queued", "running")}
+    now, freed, n = time.time(), 0, 0
+    for f in config.SOURCES.iterdir() if config.SOURCES.exists() else []:
+        if not f.is_file() or now - f.stat().st_mtime < days * 86400:
+            continue
+        vid = f.name.split(".")[0]
+        if any(vid in t for t in busy):
+            continue
+        freed += f.stat().st_size
+        n += 1
+        if not dry_run:
+            f.unlink(missing_ok=True)
+    return {"deleted": n, "freed_gb": round(freed / 1e9, 2)}
 
 
 if __name__ == "__main__":

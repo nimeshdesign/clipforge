@@ -8,6 +8,10 @@ _procs = {}      # url -> Popen
 _done = set()    # chunks already queued
 _state = {}      # url -> status text
 _starting = set()
+_started = {}    # url -> when its recorder started
+_quick = {}      # url -> recorders in a row that ended within QUICK_EXIT seconds
+_cooldown = {}   # url -> time before which we don't try again
+QUICK_EXIT, MAX_QUICK, COOLDOWN = 120, 3, 20 * 60   # a stream that keeps dying at once (ended/removed) waits 20 min
 
 
 def slug(u):
@@ -31,7 +35,8 @@ def start_recorder(entry, chunk):
     ins = [x for u in direct for x in ("-i", u)]
     cmd = [config.FFMPEG, "-v", "error", *ins, "-c", "copy", "-f", "segment", "-segment_time", str(chunk),
            "-reset_timestamps", "1", "-strftime", "1", str(d / "chunk_%Y%m%d-%H%M%S.ts")]
-    _procs[url] = subprocess.Popen(cmd)
+    _procs[url] = subprocess.Popen(cmd, stdin=subprocess.DEVNULL)
+    _started[url] = time.time()
     _state[url] = "recording"
 
 
@@ -47,7 +52,17 @@ def tick():
         elif _procs[url].poll() is not None:
             _procs.pop(url)
             _state[url] = "offline"
+            if time.time() - _started.get(url, 0) < QUICK_EXIT:      # died right away: ended / removed stream
+                _quick[url] = _quick.get(url, 0) + 1
+                if _quick[url] >= MAX_QUICK:
+                    _cooldown[url], _quick[url] = time.time() + COOLDOWN, 0
+                    _state[url] = "offline (stream keeps stopping - retry in 20 min)"
+                    import logging; logging.getLogger("clipforge").warning("live: %s keeps stopping right away, pausing 20 min", url)
+            else:
+                _quick[url] = 0
     for s in streams:
+        if _cooldown.get(s["url"], 0) > time.time():
+            continue
         if s["url"] in active and s["url"] not in _procs and s["url"] not in _starting:
             _starting.add(s["url"])
             def go(s=s):
@@ -81,8 +96,11 @@ def loop():
         try:
             tick()
             r = cleanup.run()
-            if r["deleted"]:
-                print(f"cleanup: freed {r['freed_gb']} GB ({r['deleted']} old chunks), live folder now {r['after_gb']} GB")
+            if r["deleted"] or r["junk_chunks"] or r["sources_deleted"]:
+                import logging
+                logging.getLogger("clipforge").info(
+                    "cleanup: %s old chunks (%s GB), %s junk fragments, %s old source files (%s GB); live folder now %s GB",
+                    r["deleted"], r["freed_gb"], r["junk_chunks"], r["sources_deleted"], r["sources_freed_gb"], r["after_gb"])
         except Exception as e:
             import logging; logging.getLogger("clipforge").exception("live tick error")
         time.sleep(config.load()["live"]["check_every_seconds"])
