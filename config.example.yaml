@@ -73,6 +73,7 @@ youtube:
   privacy: private
   category_id: '20'
   made_for_kids: false
+  language: en-US          # default language of every upload (helps YouTube recommend to US viewers)
   auto_upload: false
   max_uploads_per_day: 6
 thumbnail:
@@ -84,13 +85,22 @@ ai:
   backend: aistudio
   vertex_project: ''
   vertex_location: global
-  gemini_text_model: gemini-3-flash-preview
+  gemini_text_model: gemini-3.5-flash-lite   # titles, descriptions, content check (own free quota, separate from the picker)
+  fallback_models:         # tried in order when a model is out of free quota, overloaded or retired
+  - gemini-3.1-flash-lite
+  - gemini-flash-lite-latest
+  - gemini-3-flash-preview
 autopost:
   enabled: false
   max_per_window: 2
   window_hours: 4
   min_gap_minutes: 45
   idle_hours: 3
+  require_check: true      # never auto-post a clip the AI content check has not approved
+  auto_pick: true          # also post AI-picked clips rated >= min_viral without approval
+  min_viral: 7
+  post_hours: [10, 22]     # only post between these hours (24h clock) in `timezone`; remove for any time
+  timezone: America/New_York
 agent:
   model: gemini-3-flash-preview
   min_hype: 7
@@ -101,6 +111,15 @@ budget:
   daily_usd: 10
   warn_at: 0.8
   prices_per_million:
+    gemini-3.5-flash-lite:
+      in: 0.1
+      out: 0.4
+    gemini-3.1-flash-lite:
+      in: 0.1
+      out: 0.4
+    gemini-flash-lite-latest:
+      in: 0.1
+      out: 0.4
     gemini-3-flash-preview:
       in: 0.5
       out: 3.0

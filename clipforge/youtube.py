@@ -83,8 +83,10 @@ def upload(cid, publish_at=None, progress=None):
     status = {"privacyStatus": meta.get("privacy") or y["privacy"], "selfDeclaredMadeForKids": y["made_for_kids"]}
     if publish_at:  # scheduled publishing requires private + RFC3339 time
         status.update(privacyStatus="private", publishAt=publish_at)
+    lang = y.get("language", "en-US")      # tells YouTube which audience/language to recommend the video to
     body = {"snippet": {"title": meta["title"][:100], "description": meta["description"][:4900],
-                        "tags": meta["tags"], "categoryId": y["category_id"]}, "status": status}
+                        "tags": meta["tags"], "categoryId": y["category_id"],
+                        "defaultLanguage": lang, "defaultAudioLanguage": lang}, "status": status}
     media = MediaFileUpload(str(store.folder(cid) / "clip.mp4"), chunksize=4 * 1024 * 1024, resumable=True)
     yt = _yt()
     req = yt.videos().insert(part="snippet,status", body=body, media_body=media)

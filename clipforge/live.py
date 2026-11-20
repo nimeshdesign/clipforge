@@ -83,7 +83,7 @@ def loop():
             if r["deleted"]:
                 print(f"cleanup: freed {r['freed_gb']} GB ({r['deleted']} old chunks), live folder now {r['after_gb']} GB")
         except Exception as e:
-            print("live tick error:", e)
+            import logging; logging.getLogger("clipforge").exception("live tick error")
         time.sleep(config.load()["live"]["check_every_seconds"])
 
 

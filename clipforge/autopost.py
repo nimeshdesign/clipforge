@@ -1,9 +1,12 @@
 """Auto-posting rules:
+  * only between `post_hours` in `timezone` (default 10:00-22:00 US Eastern), so posts land while the audience is awake
   * at most `max_per_window` posts per `window_hours` (default 2 per 4h), and `min_gap_minutes` between posts
   * clips you approved in the UI go first (best score first)
+  * then, with `auto_pick`, AI-picked clips rated at least `min_viral` - no approval needed
   * if nothing was posted for `idle_hours` and the system is online, the best remaining clip is posted anyway
 """
 import datetime, threading, time
+from zoneinfo import ZoneInfo
 from . import config, store, youtube, poster
 
 _state = {"msg": "off"}
@@ -17,7 +20,10 @@ def rank(c):
 def candidates():
     out = []
     for c in store.all_clips():
-        if c.get("status") == "posted" or (c.get("post") or {}).get("state") in ("uploading", "preparing"):
+        p = c.get("post") or {}
+        if c.get("status") == "posted" or p.get("state") in ("uploading", "preparing"):
+            continue
+        if p.get("state") == "error" and time.time() - p.get("at", 0) < 30 * 60:   # failed recently: retry in 30 min
             continue
         ai = c.get("ai") or {}
         if ai.get("relevant") is False or ai.get("safe") is False:
@@ -38,6 +44,14 @@ def tick():
     if not youtube.authed():
         _state["msg"] = "connect YouTube first"
         return
+    hours = cfg.get("post_hours")
+    if hours:
+        tz = cfg.get("timezone", "America/New_York")
+        h = datetime.datetime.now(ZoneInfo(tz)).hour
+        a, b = int(hours[0]), int(hours[1])
+        if not (a <= h < b if a <= b else h >= a or h < b):
+            _state["msg"] = f"outside posting hours ({a}:00-{b}:00 {tz.split('/')[-1].replace('_', ' ')} time)"
+            return
     recent = youtube.posts_since(cfg["window_hours"])
     last = youtube.last_post()
     now = datetime.datetime.now()
@@ -51,7 +65,8 @@ def tick():
     cands = candidates()
     approved = [c for c in cands if c.get("approved")]
     idle = last is None or now - last > datetime.timedelta(hours=cfg["idle_hours"])
-    pick = approved[0] if approved else (cands[0] if idle and cands else None)
+    good = [c for c in cands if (c.get("viral") or 0) >= cfg.get("min_viral", 7)] if cfg.get("auto_pick") else []
+    pick = approved[0] if approved else good[0] if good else (cands[0] if idle and cands else None)
     if not pick:
         _state["msg"] = "on - nothing to post"
         return
@@ -65,6 +80,7 @@ def loop():
             tick()
         except Exception as e:
             _state["msg"] = f"error: {str(e)[:120]}"
+            import logging; logging.getLogger("clipforge").exception("auto-post error")
         time.sleep(60)
 
 

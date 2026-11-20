@@ -1,5 +1,5 @@
 """Gemini helpers over plain REST (no extra SDK): text judging + image generation ("Nano Banana")."""
-import base64, json, os, re, urllib.request
+import base64, json, os, re, urllib.request, urllib.error
 
 BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -18,15 +18,35 @@ def _url(model):
     return f"{BASE}/{model}:generateContent"
 
 
+_exhausted = {}   # model -> Pacific date on which its free-tier daily quota ran out
+
+
+def _pacific_day():
+    import datetime
+    from zoneinfo import ZoneInfo
+    return datetime.datetime.now(ZoneInfo("America/Los_Angeles")).date()   # Gemini daily quotas reset at midnight Pacific
+
+
 def _post(model, body, timeout=120, tag="misc"):
     from . import usage
     usage.check()                       # raises BudgetExceeded once the daily cap is hit
+    if _exhausted.get(model) == _pacific_day():
+        raise RuntimeError(f"{model}: free-tier daily limit reached, using free fallbacks until it resets (midnight US Pacific)")
     if "aiplatform" in _url(model):         # Vertex wants an explicit role on each content
         for c in body["contents"]:
             c.setdefault("role", "user")
     req = urllib.request.Request(_url(model), data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json", "x-goog-api-key": key()})
-    r = json.load(urllib.request.urlopen(req, timeout=timeout))
+    try:
+        r = json.load(urllib.request.urlopen(req, timeout=timeout))
+    except urllib.error.HTTPError as e:
+        if e.code != 429:
+            raise
+        msg = e.read().decode(errors="replace")
+        if re.search(r"per ?day|PerDay", msg, re.I):     # daily quota gone: stop calling this model until reset
+            _exhausted[model] = _pacific_day()
+            raise RuntimeError(f"{model}: free-tier daily limit reached, using free fallbacks until it resets (midnight US Pacific)")
+        raise RuntimeError(f"{model}: free-tier rate limit hit, using a free fallback for this one")
     usage.record(model, r.get("usageMetadata"), tag)
     return r
 
@@ -36,6 +56,26 @@ def _img(b):
 
 
 def text_json(model, prompt, images=None, tag="misc", think=None):
+    """Tries `model`, then each of ai.fallback_models when one is out of free quota, overloaded or retired.
+    Free-tier limits are per model, so spreading calls across models keeps the AI free for longer."""
+    from . import config, usage
+    chain = [model] + [m for m in config.load().get("ai", {}).get("fallback_models") or [] if m != model]
+    err = None
+    for m in chain:
+        try:
+            return _text_json_one(m, prompt, images, tag, think)
+        except usage.BudgetExceeded:
+            raise
+        except urllib.error.HTTPError as e:
+            if e.code not in (404, 429, 500, 503):
+                raise
+            err = e
+        except RuntimeError as e:           # free-tier limit reported by _post
+            err = e
+    raise err
+
+
+def _text_json_one(model, prompt, images=None, tag="misc", think=None):
     """think: None = model default; "minimal"/"low" = cap hidden reasoning tokens (they are billed as output)."""
     parts = [{"text": prompt}] + [_img(b) for b in (images or [])]
     gc = {"responseMimeType": "application/json"}

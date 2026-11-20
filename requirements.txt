@@ -8,3 +8,4 @@ google-auth-oauthlib
 anthropic
 pyyaml
 opencv-python-headless<5
+tzdata

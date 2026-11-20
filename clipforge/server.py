@@ -11,6 +11,26 @@ WEB = Path(__file__).parent / "web"
 app = FastAPI(title="ClipForge")
 
 
+def _setup_log():
+    """data/server.log keeps errors (incl. crashes in background threads such as YouTube sign-in or auto-post),
+    so they are not lost when the console window is minimised or closed."""
+    import logging, logging.handlers, sys
+    h = logging.handlers.RotatingFileHandler(config.DATA / "server.log", maxBytes=2_000_000, backupCount=2, encoding="utf-8")
+    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    log = logging.getLogger("clipforge")
+    log.setLevel(logging.INFO)
+    log.addHandler(h)
+    for name in ("uvicorn.error",):
+        logging.getLogger(name).addHandler(h)
+    threading.excepthook = lambda a: log.error("thread %s crashed", a.thread.name if a.thread else "?",
+                                               exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
+    sys.excepthook = lambda *e: log.critical("server crashed", exc_info=e)
+    log.info("ClipForge starting")
+
+
+_setup_log()
+
+
 class JobIn(BaseModel):
     url: str
     mode: str | None = None
