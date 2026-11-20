@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from . import usage, generate, config, pipeline, live, store, seo, youtube, poster, thumbnails, autopost, ai, discover
+from . import usage, generate, config, pipeline, live, store, seo, youtube, poster, thumbnails, autopost, ai, discover, performance
 
 WEB = Path(__file__).parent / "web"
 app = FastAPI(title="ClipForge")
@@ -54,6 +54,7 @@ def _start():
     live.start()
     autopost.start()
     discover.start()
+    performance.start()
 
 
 @app.get("/")
@@ -227,6 +228,29 @@ def yt_auth():
 def yt_logout():
     youtube.logout()
     return "ok"
+
+
+@app.get("/api/performance")
+def perf_state():
+    return performance.state()
+
+
+@app.post("/api/performance/refresh")
+def perf_refresh():
+    try:
+        performance.refresh()
+    except Exception as e:
+        raise HTTPException(500, f"Could not read YouTube stats: {e}")
+    return performance.state()
+
+
+@app.post("/api/performance/insights")
+def perf_insights():
+    try:
+        performance.insights()
+    except Exception as e:
+        raise HTTPException(500, f"AI suggestions failed: {e}")
+    return performance.state()
 
 
 @app.post("/api/autopost")

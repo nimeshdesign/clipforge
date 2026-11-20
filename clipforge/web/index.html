@@ -35,7 +35,7 @@ nav{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line);over
 nav a{padding:10px 14px;color:var(--mut);text-decoration:none;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}nav a.on{color:var(--tx);border-color:var(--acc)}
 .tab{display:none}.tab.on{display:grid;gap:20px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.kpi{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}.kpi b{display:block;font-size:22px}.kpi span{font-size:12px;color:var(--mut)}
-.br{display:grid;grid-template-columns:130px 1fr 80px;gap:8px;align-items:center;font-size:13px;margin:5px 0}.br .bar{height:8px}
+.br{display:grid;grid-template-columns:130px 1fr 80px;gap:8px;align-items:center;font-size:13px;margin:5px 0}.br>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pfwarn{border:1px solid var(--warn);border-radius:8px;padding:8px 10px;margin-top:10px}#pfins ul,#pfins ol{margin:6px 0 10px;padding-left:20px}#pfins li{margin:4px 0}.br .bar{height:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:6px 8px;border-top:1px solid var(--line)}th{color:var(--mut);font-weight:600;border:0}
 .hint{font-size:12px;color:var(--mut);margin:4px 0 0}
 </style></head><body>
@@ -45,7 +45,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 <label class="pill" style="cursor:pointer"><input type="checkbox" id="ap" style="width:auto;vertical-align:middle"> Auto-post <span id="apmsg"></span></label>
 <span id="bud" class="pill"></span>
 <span id="yt" class="pill"></span></header>
-<nav id="nav"><a href="#clips" class="on">Clips</a><a href="#sources">Sources &amp; jobs</a><a href="#insights">Insights</a><a href="#prompts">Prompts</a></nav>
+<nav id="nav"><a href="#clips" class="on">Clips</a><a href="#sources">Sources &amp; jobs</a><a href="#insights">Insights</a><a href="#performance">Performance</a><a href="#prompts">Prompts</a></nav>
 <div id="nokey" class="card" style="display:none;margin:14px 20px 0;border-color:var(--warn)"><b>No Gemini key set.</b> <span class="mut">Clipping, captions and posting all work. Titles, descriptions and tags use built-in templates, thumbnails are a game frame with text, and the humour agent is off. Add a key in <code>secrets/keys.env</code> (see README) for AI versions.</span></div>
 <main>
 <section class="tab" id="t-sources"><div class="two">
@@ -70,6 +70,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
  <div class="card"><h2>Last 7 days</h2><div id="days"></div></div></div>
  <div class="card"><h2>By source</h2><div style="overflow:auto"><table id="bysrc"></table></div></div>
 </section>
+<section class="tab" id="t-performance">
+ <div class="card"><div class="row"><h2 style="flex:1;margin:0">Posted videos</h2><span class="mut" id="pfwhen"></span><button class="sec" id="pfbtn" onclick="pfRefresh()">Refresh stats</button></div>
+  <div id="pfnote"></div><div class="kpis" id="pfkpis" style="margin-top:12px"></div></div>
+ <div class="card"><div class="row"><h2 style="flex:1;margin:0">AI suggestions</h2><button id="pfai" onclick="pfInsights()">Get AI suggestions</button></div><div id="pfins" style="margin-top:10px"></div></div>
+ <div class="two" id="pfgroups"></div>
+ <div class="card"><h2>Every video</h2><div style="overflow:auto"><table id="pftable"></table></div></div>
+</section>
 <section class="tab" id="t-prompts"><div class="card"><h2>Thumbnail art-director prompt</h2>
  <p class="mut">This is the instruction sent to Gemini together with three game frames and the clip caption. Gemini answers with the image brief, which Nano Banana then renders. Keep the <code>{format_spec}</code> placeholder: the portrait/landscape rules are inserted there. Changes apply to every thumbnail made from now on; you can still edit each clip's own brief in its review dialog.</p>
  <textarea id="dir" rows="22" style="font:13px/1.5 ui-monospace,monospace" oninput="dirDirty=true"></textarea>
@@ -80,13 +87,35 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const api=(p,m='GET',b)=>fetch('/api'+p,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined}).then(async r=>{if(!r.ok)throw new Error((await r.json()).detail||r.statusText);return r.json()});
 let editing=false,sig='',dirDirty=false,TAB='clips';
-function tab(n){TAB=n;for(const a of document.querySelectorAll('#nav a'))a.classList.toggle('on',a.hash==='#'+n);for(const t of document.querySelectorAll('.tab'))t.classList.toggle('on',t.id==='t-'+n);if(n==='prompts'&&!dirDirty)loadDir();if(n==='insights')drawIns()}
+function tab(n){TAB=n;for(const a of document.querySelectorAll('#nav a'))a.classList.toggle('on',a.hash==='#'+n);for(const t of document.querySelectorAll('.tab'))t.classList.toggle('on',t.id==='t-'+n);if(n==='prompts'&&!dirDirty)loadDir();if(n==='insights')drawIns();if(n==='performance')loadPerf()}
 window.onhashchange=()=>tab((location.hash||'#clips').slice(1));
 async function loadDir(){const r=await api('/prompts/thumbnail_director');$('dir').value=r.text;$('dirmsg').textContent=r.custom?'Using your edited version':'Using the default';dirDirty=false}
 async function saveDir(){try{await api('/prompts/thumbnail_director','PUT',{text:$('dir').value});dirDirty=false;$('dirmsg').textContent='Saved - used for the next thumbnail'}catch(e){alert(e.message)}}
 async function resetDir(){if(!confirm('Discard your edits and restore the default prompt?'))return;const r=await api('/prompts/thumbnail_director','DELETE');$('dir').value=r.text;dirDirty=false;$('dirmsg').textContent='Default restored'}
 const bar=(v,m,col)=>`<div class="bar"><i style="width:${Math.max(0,Math.min(100,v/m*100))}%;${col?'background:'+col:''}"></i></div>`;
-let BUD=null;
+let BUD=null,PF=null;
+async function loadPerf(){try{PF=await api('/performance');drawPerf()}catch(e){$('pfnote').innerHTML=`<p class="hint">${esc(e.message)}</p>`}}
+async function pfRefresh(){const b=$('pfbtn');b.disabled=true;b.textContent='Refreshing…';try{PF=await api('/performance/refresh','POST');drawPerf()}catch(e){alert(e.message)}b.disabled=false;b.textContent='Refresh stats'}
+async function pfInsights(){const b=$('pfai');b.disabled=true;b.textContent='Analysing…';try{PF=await api('/performance/insights','POST');drawPerf()}catch(e){alert(e.message)}b.disabled=false;b.textContent='Get AI suggestions'}
+const fmt=n=>n==null?'–':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e4?Math.round(n/1e3)+'k':n>=1e3?(n/1e3).toFixed(1)+'k':String(Math.round(n));
+const TRAFFIC={SHORTS:'Shorts feed',YT_SEARCH:'YouTube search',SUBSCRIBER:'Subscribers',RELATED_VIDEO:'Suggested videos',BROWSE:'Browse / home',EXT_URL:'External sites',YT_CHANNEL:'Channel page',NO_LINK_OTHER:'Direct / unknown',NOTIFICATION:'Notifications',PLAYLIST:'Playlists',YT_OTHER_PAGE:'Other YouTube pages',HASHTAGS:'Hashtags',SOUND_PAGE:'Sound pages'};
+function drawPerf(){if(!PF)return;const d=PF.data,rows=((d&&d.rows)||[]).filter(r=>!r.removed),t=(d&&d.totals)||{},ins=PF.insights||{};
+ $('pfwhen').textContent=d?'Updated '+d.fetched_at.replace('T',' ')+' ':'';
+ let note='';
+ if(!PF.analytics_permission)note=`<div class="hint pfwarn">Watch time, % viewed, subscribers gained and traffic sources need the free <b>YouTube Analytics</b> permission: in Google Cloud Console → APIs &amp; Services → Library, enable <b>YouTube Analytics API</b>, then <a href="#" onclick="yauth();return false">reconnect YouTube</a>.</div>`;
+ else if(d&&d.analytics&&d.analytics!=='ok')note=`<div class="hint pfwarn">YouTube Analytics: ${esc(d.analytics)}</div>`;
+ if(rows.length&&rows.length<10)note+=`<p class="hint">Only ${rows.length} video${rows.length>1?'s':''} posted so far. Patterns become reliable after about 10-20 videos, and each video needs 2-3 days to collect most of its views.</p>`;
+ if(t.removed)note+=`<p class="hint">${t.removed} posted video(s) are no longer on YouTube (deleted or removed).</p>`;
+ $('pfnote').innerHTML=note;
+ $('pfkpis').innerHTML=d&&rows.length?[['Videos posted',t.videos],['Views',fmt(t.views)],['Avg views / video',fmt(t.views/t.videos)],['Likes',fmt(t.likes)],['Comments',fmt(t.comments)],['Avg % viewed',t.avg_view_pct!=null?t.avg_view_pct+'%':'–'],['Subscribers gained',t.subs_gained!=null?fmt(t.subs_gained):'–']].map(([k,v])=>`<div class="kpi"><b>${v}</b><span>${k}</span></div>`).join(''):'<span class="mut">No stats yet. Post a video, then press Refresh stats.</span>';
+ let gh=Object.entries((d&&d.groups)||{}).map(([name,list])=>{const mx=Math.max(1,...list.map(x=>x.avg_views));return `<div class="card"><h2>Avg views by ${esc(name.charAt(0).toLowerCase()+name.slice(1))}</h2>${list.map(x=>`<div class="br"><span title="${esc(x.name)}">${esc(x.name)}</span>${bar(x.avg_views,mx)}<span class="mut">${fmt(x.avg_views)} · ${x.videos} vid</span></div>`).join('')}</div>`}).join('');
+ const tr=Object.entries((d&&d.traffic)||{});if(tr.length){const mx=Math.max(...tr.map(x=>x[1]));gh+=`<div class="card"><h2>Where views come from</h2>${tr.map(([k,v])=>`<div class="br"><span>${esc(TRAFFIC[k]||k)}</span>${bar(v,mx,'var(--ok)')}<span class="mut">${fmt(v)}</span></div>`).join('')}</div>`}
+ $('pfgroups').innerHTML=rows.length?gh:'';
+ const notes=Object.fromEntries((ins.videos||[]).map(v=>[v.id,v.note]));
+ $('pftable').innerHTML=rows.length?'<tr><th></th><th>Video</th><th>Posted (ET)</th><th>Views</th><th>Views / h</th><th>Likes</th><th>Comments</th><th>% viewed</th><th>Length</th><th>AI score</th><th>Source</th></tr>'+[...rows].sort((a,b)=>b.views-a.views).map(r=>`<tr><td><img src="/media/${esc(r.cid)}/clip.jpg" alt="" style="width:40px;border-radius:4px" loading="lazy"></td><td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>${r.privacy!=='public'?` <span class="pill new">${esc(r.privacy)}</span>`:''}${r.auto?' <span class="mut">· auto</span>':''}${notes[r.id]?`<div class="hint">💡 ${esc(notes[r.id])}</div>`:''}</td><td style="white-space:nowrap">${esc(r.posted.slice(5,16).replace('T',' '))}</td><td><b>${fmt(r.views)}</b></td><td>${r.views_per_hour}</td><td>${fmt(r.likes)}</td><td>${fmt(r.comments)}</td><td>${r.avg_view_pct!=null?Math.round(r.avg_view_pct)+'%':'–'}</td><td>${Math.round(r.duration)}s</td><td>${r.ai_score??'–'}</td><td>${esc(r.source)}</td></tr>`).join(''):'<tr><td class="mut">No posted videos yet.</td></tr>';
+ $('pfins').innerHTML=ins.summary?`<p style="margin:0 0 6px">${esc(ins.summary)}</p><p class="hint">Based on ${ins.based_on} video(s) · ${esc((ins.generated_at||'').replace('T',' '))} · confidence: <b>${esc(ins.confidence||'?')}</b></p>
+ <div class="two" style="margin-top:8px;gap:12px"><div><b style="color:var(--ok)">Working</b><ul>${(ins.working||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="mut">Not enough data yet</li>'}</ul></div><div><b style="color:#e5484d">Not working</b><ul>${(ins.not_working||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li class="mut">Not enough data yet</li>'}</ul></div></div>
+ <b>What to change</b><ol>${(ins.actions||[]).map(a=>`<li><b>${esc(a.change)}</b><div class="hint">${esc(a.why)}${a.setting?` · setting <code>${esc(a.setting)}</code>${a.value?' → <code>'+esc(a.value)+'</code>':''}`:''}</div></li>`).join('')||'<li class="mut">No changes suggested yet</li>'}</ol>`:'<span class="mut">Press <b>Get AI suggestions</b> for an analysis of what works, what does not and what to change. It uses one free-tier Gemini call.</span>'}
 function drawIns(){if(!BUD)return;const n=f=>CL.filter(f).length,srcs=[...new Set(CL.map(srcOf))];
  $('kpis').innerHTML=[['Clips',CL.length],['Needs review',n(c=>c.status!=='posted'&&!c.approved)],['Approved',n(c=>c.approved&&c.status!=='posted')],['Posted',n(c=>c.status==='posted')],['Starred',n(c=>c.star)],['Generated (SEO + thumbnail)',n(c=>c.generated)],['AI calls today',BUD.calls],['Tokens in / out',BUD.tokens_in+' / '+BUD.tokens_out]].map(([a,b])=>`<div class="kpi"><b>${b}</b><span>${a}</span></div>`).join('');
  const by=Object.entries(BUD.by).sort((a,b)=>b[1].usd-a[1].usd),names={thumb_brief:'Thumbnail brief',thumbnail:'Thumbnail image',agent:'Humour agent',picker:'Clip picker',seo:'SEO text',title:'Titles',judge:'Content check'};

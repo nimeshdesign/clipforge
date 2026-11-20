@@ -120,6 +120,8 @@ agent:
   only_starred: true
   max_candidates: 6
   caption_chars: 200
+performance:
+  refresh_minutes: 120      # how often posted-video stats are read from YouTube (Performance tab)
 budget:
   daily_usd: 10
   warn_at: 0.8
