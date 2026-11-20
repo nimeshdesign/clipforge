@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from . import usage, generate, config, pipeline, live, store, seo, youtube, poster, thumbnails, autopost, ai
+from . import usage, generate, config, pipeline, live, store, seo, youtube, poster, thumbnails, autopost, ai, discover
 
 WEB = Path(__file__).parent / "web"
 app = FastAPI(title="ClipForge")
@@ -53,6 +53,7 @@ def _start():
     pipeline.start()
     live.start()
     autopost.start()
+    discover.start()
 
 
 @app.get("/")
@@ -64,10 +65,12 @@ def index():
 def state():
     cfg = config.load()
     return {"jobs": [{k: v for k, v in j.items() if k != "opts"} for j in list(pipeline.JOBS.values())[-30:]][::-1],
-            "live": [{**s, "state": live.status().get(s["url"], "idle")} for s in cfg["live"].get("streams", [])],
+            "live": [{**s, "state": live.status().get(s["url"], "idle")} for s in cfg["live"].get("streams", [])]
+                    + [{**s, "auto": True, "state": live.status().get(s["url"], "idle")} for s in discover.live_streams()],
             "clips": store.all_clips(),
             "youtube": {"configured": youtube.configured(), "authed": youtube.authed(), "channel": youtube.channel_name(), "privacy": cfg["youtube"]["privacy"]},
             "autopost": {**autopost.status(), "enabled": cfg["autopost"]["enabled"], "max": cfg["autopost"]["max_per_window"], "hours": cfg["autopost"]["window_hours"]},
+            "discover": {**discover.status(), "enabled": bool(discover.cfg().get("enabled")), "channels": [c["name"] for c in discover.cfg().get("channels") or []]},
             "keys": {"gemini": bool(ai.key())},
             "budget": usage.summary(),
             "mode": cfg["clip"]["mode"], "folder": str(config.clips_dir())}

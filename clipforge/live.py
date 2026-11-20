@@ -2,7 +2,7 @@
 queue every finished chunk for clipping - so clips are ready while the stream is still running."""
 import subprocess, sys, threading, time, re
 from pathlib import Path
-from . import config, pipeline, store, cleanup
+from . import config, pipeline, store, cleanup, discover
 
 _procs = {}      # url -> Popen
 _done = set()    # chunks already queued
@@ -38,7 +38,8 @@ def start_recorder(entry, chunk):
 def tick():
     cfg = config.load()
     live = cfg["live"]
-    active = {s["url"] for s in live.get("streams", []) if s.get("enabled", True)}
+    streams = live.get("streams", []) + discover.live_streams()
+    active = {s["url"] for s in streams if s.get("enabled", True)}
     for url in list(_procs):                      # stop removed / disabled streams, reap ended ones
         if url not in active:
             _procs.pop(url).terminate()
@@ -46,7 +47,7 @@ def tick():
         elif _procs[url].poll() is not None:
             _procs.pop(url)
             _state[url] = "offline"
-    for s in live.get("streams", []):
+    for s in streams:
         if s["url"] in active and s["url"] not in _procs and s["url"] not in _starting:
             _starting.add(s["url"])
             def go(s=s):
@@ -56,7 +57,7 @@ def tick():
                     _starting.discard(s["url"])
             threading.Thread(target=go, daemon=True).start()
     # queue finished chunks (not modified for 20s, or recorder gone)
-    for s in live.get("streams", []):
+    for s in streams:
         d = config.LIVE / slug(s["url"])
         if not d.exists():
             continue

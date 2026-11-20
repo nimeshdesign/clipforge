@@ -21,15 +21,52 @@ def _log(j, msg):
     j["log"] = j["log"][-40:]
 
 
+def _kinds(path):
+    """Stream types in a media file, e.g. {'video', 'audio'} (empty if missing/unreadable)."""
+    if not path.exists():
+        return set()
+    r = subprocess.run([config.FFPROBE, "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(path)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL)
+    return set(r.stdout.split())
+
+
+def _has_av(path):
+    return {"video", "audio"} <= _kinds(path)
+
+
+def _merge_parts(path, j):
+    """yt-dlp sometimes reports the merged file but leaves the video and audio parts (<id>.fNNN.ext) unmerged when
+    ClipForge runs in the background. Merge them ourselves."""
+    parts = [p for p in path.parent.glob(path.stem + ".f*") if p.suffix not in (".part", ".json", ".ytdl")]
+    video = next((p for p in parts if "video" in _kinds(p)), None)
+    audio = next((p for p in parts if _kinds(p) == {"audio"}), None)
+    if not (video and audio):
+        return False
+    _log(j, "Merging video and audio…")
+    r = subprocess.run([config.FFMPEG, "-y", "-v", "error", "-i", str(video), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0",
+                        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(path)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL)
+    if r.returncode or not _has_av(path):
+        _log(j, "Merge failed: " + r.stderr[-200:])
+        return False
+    for p in (video, audio):
+        p.unlink(missing_ok=True)
+    return True
+
+
 def download(url, j):
     _log(j, "Downloading with yt-dlp…")
     out = config.SOURCES / "%(id)s.%(ext)s"
     cmd = [sys.executable, "-m", "yt_dlp", "--ffmpeg-location", config.FFMPEG, "--js-runtimes", "node", "--no-playlist", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
            "--merge-output-format", "mp4", "--write-info-json", "-o", str(out), "--print", "after_move:filepath", url]
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    # stdin=DEVNULL: in the background (hidden console) ffmpeg must not wait on console input
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL)
     if r.returncode:
         raise RuntimeError("yt-dlp failed: " + r.stderr[-300:])
     path = Path(r.stdout.strip().splitlines()[-1])
+    if not _has_av(path) and not _merge_parts(path, j):
+        tail = " | ".join(l for l in r.stderr.splitlines()[-4:] if l.strip())[-300:]
+        raise RuntimeError(f"download has no video+audio ({path.name}). yt-dlp: {tail}")
     info = {}
     ij = path.with_suffix(".info.json")
     if ij.exists():

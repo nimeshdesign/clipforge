@@ -69,6 +69,19 @@ live:
   max_keep_gb: 10          # raw stream chunks above this are deleted, oldest already-clipped first
   check_every_seconds: 90
   streams: []
+discover:                  # find source videos automatically (see clipforge/discover.py)
+  enabled: false
+  check_every_minutes: 60
+  max_per_day: 4             # new videos queued per day (each one is downloaded, transcribed and clipped)
+  max_age_hours: 72          # ignore uploads older than this
+  min_minutes: 3             # skip very short videos (and Shorts)
+  max_minutes: 180           # skip very long VODs (slow to transcribe on CPU)
+  min_views_per_hour: 0
+  check_latest: 8            # newest uploads looked at per channel
+  title_must_include: [gta 6, gta vi, gta6, grand theft auto 6, grand theft auto vi]   # case-insensitive
+  max_per_channel_per_day: 2   # variety: don't fill the day from one channel
+  record_live: true          # also record each channel's live streams while they are live
+  channels: []
 youtube:
   privacy: private
   category_id: '20'
