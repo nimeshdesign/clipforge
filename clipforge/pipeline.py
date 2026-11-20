@@ -24,7 +24,7 @@ def _log(j, msg):
 def download(url, j):
     _log(j, "Downloading with yt-dlp…")
     out = config.SOURCES / "%(id)s.%(ext)s"
-    cmd = [sys.executable, "-m", "yt_dlp", "--js-runtimes", "node", "--no-playlist", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
+    cmd = [sys.executable, "-m", "yt_dlp", "--ffmpeg-location", config.FFMPEG, "--js-runtimes", "node", "--no-playlist", "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
            "--merge-output-format", "mp4", "--write-info-json", "-o", str(out), "--print", "after_move:filepath", url]
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode:

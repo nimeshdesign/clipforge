@@ -33,8 +33,24 @@ for d in (DATA, SOURCES, LIVE, SECRETS):
     d.mkdir(parents=True, exist_ok=True)
 
 import os
-# The static ffmpeg in ~/.local/bin segfaults on https/.ts inputs here; prefer the system build.
-FFMPEG = "/usr/bin/ffmpeg" if os.path.exists("/usr/bin/ffmpeg") else "ffmpeg"
+def _find_tool(name):
+    """ffmpeg/ffprobe: system build on Linux (the static one in ~/.local/bin segfaults on https/.ts inputs),
+    PATH elsewhere, and on Windows also a winget install that never made it onto PATH."""
+    import shutil, glob
+    if os.path.exists(f"/usr/bin/{name}"):
+        return f"/usr/bin/{name}"
+    if shutil.which(name):
+        return name
+    if os.name == "nt":
+        hits = sorted(glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Packages",
+                                             "*FFmpeg*", "**", "bin", f"{name}.exe"), recursive=True))
+        if hits:
+            return hits[-1]
+    return name
+
+
+FFMPEG = _find_tool("ffmpeg")
+FFPROBE = _find_tool("ffprobe")
 
 
 def _load_keys():

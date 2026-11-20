@@ -9,7 +9,7 @@ from . import config
 
 
 def probe(path):
-    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration",
+    r = subprocess.run([config.FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration",
                         "-of", "json", str(path)], capture_output=True, text=True, encoding="utf-8", errors="replace")
     j = json.loads(r.stdout)
     return int(j["streams"][0]["width"]), int(j["streams"][0]["height"]), float(j["format"]["duration"])

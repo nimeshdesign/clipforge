@@ -69,6 +69,7 @@ URL or live stream
 | Disk space | live chunks are large; delete old ones in `data/live/` | |
 
 Install on Debian/Ubuntu: `sudo apt install ffmpeg nodejs python3-venv`. On macOS: `brew install ffmpeg node`.
+On Windows: install [Python](https://www.python.org/downloads/), then `winget install Gyan.FFmpeg OpenJS.NodeJS`. ffmpeg is found automatically even if winget did not add it to PATH.
 
 ## Quick start
 ```bash
@@ -80,6 +81,8 @@ cp secrets/keys.env.example secrets/keys.env     # then paste your Gemini key (s
 Open <http://localhost:8800>. On first run `config.example.yaml` is copied to `config.yaml`, which is yours to edit (it is git-ignored).
 
 `run.sh` uses [uv](https://docs.astral.sh/uv/) if installed, otherwise a normal `venv` + `pip`.
+
+**Windows:** copy `secrets\keys.env.example` to `secrets\keys.env`, paste your key, then double-click **`start.bat`**. It creates `.venv` on first run, installs dependencies, starts the server and opens the UI. Close its window to stop ClipForge.
 
 ## Get your API keys and enable Google features
 
