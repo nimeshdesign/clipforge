@@ -83,6 +83,7 @@ Open <http://localhost:8800>. On first run `config.example.yaml` is copied to `c
 `run.sh` uses [uv](https://docs.astral.sh/uv/) if installed, otherwise a normal `venv` + `pip`.
 
 **Windows:** copy `secrets\keys.env.example` to `secrets\keys.env`, paste your key, then double-click **`start.bat`**. It creates `.venv` on first run, installs dependencies, starts the server and opens the UI. Close its window to stop ClipForge.
+To run with no window at all, double-click **`start-background.vbs`** (open <http://127.0.0.1:8800> yourself; errors go to `data\server.log`) and use **`stop.bat`** to stop it, including its live-stream recorders. To start in the background at every sign-in, put a shortcut to `start-background.vbs` in the folder that `Win + R` → `shell:startup` opens.
 
 ## Get your API keys and enable Google features
 

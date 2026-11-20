@@ -87,5 +87,25 @@ def loop():
         time.sleep(config.load()["live"]["check_every_seconds"])
 
 
+def kill_orphans():
+    """Stop recorders left over from a previous run. On Windows a killed server leaves its ffmpeg children running,
+    and every restart would otherwise add another recorder writing the same stream (duplicate chunks and clips)."""
+    import logging, os
+    live = str(config.LIVE.resolve())
+    try:
+        if os.name == "nt":
+            ps = (f"$p = Get-CimInstance Win32_Process -Filter \"Name='ffmpeg.exe'\" | Where-Object {{ $_.CommandLine -like '*{live}*' }}; "
+                  "$p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; @($p).Count")
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=60)
+            n = int((r.stdout.strip() or "0").splitlines()[-1])
+        else:
+            n = 0 if subprocess.run(["pkill", "-f", f"ffmpeg.*{re.escape(live)}"], capture_output=True, timeout=30).returncode else 1
+        if n:
+            logging.getLogger("clipforge").info("stopped %s leftover live recorder(s) from a previous run", n)
+    except Exception:
+        logging.getLogger("clipforge").exception("could not clean up leftover recorders")
+
+
 def start():
+    kill_orphans()
     threading.Thread(target=loop, daemon=True).start()
