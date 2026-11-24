@@ -150,6 +150,8 @@ def upload(cid, publish_at=None, progress=None):
     meta = store.load(cid)
     status = {"privacyStatus": meta.get("privacy") or y["privacy"], "selfDeclaredMadeForKids": y["made_for_kids"]}
     if publish_at:  # scheduled publishing requires private + RFC3339 time
+        if isinstance(publish_at, datetime.datetime):
+            publish_at = publish_at.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         status.update(privacyStatus="private", publishAt=publish_at)
     lang = y.get("language", "en-US")      # tells YouTube which audience/language to recommend the video to
     body = {"snippet": {"title": meta["title"][:100], "description": meta["description"][:4900],
@@ -173,7 +175,7 @@ def upload(cid, publish_at=None, progress=None):
     ts = _times() + [datetime.datetime.now().isoformat(timespec="seconds")]
     QUOTA.write_text(json.dumps({"times": ts[-200:]}), encoding="utf-8")
     return store.update(cid, youtube_id=resp["id"], youtube_url=f"https://youtu.be/{resp['id']}",
-                        uploaded_at=ts[-1], status="posted", thumb_error=thumb_err)
+                        uploaded_at=ts[-1], publish_at=publish_at, status="posted", thumb_error=thumb_err)
 
 
 if __name__ == "__main__":

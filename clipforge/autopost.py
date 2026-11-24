@@ -4,6 +4,8 @@
   * clips you approved in the UI go first (best score first)
   * then, with `auto_pick`, AI-picked clips rated at least `min_viral` - no approval needed
   * if nothing was posted for `idle_hours` and the system is online, the best remaining clip is posted anyway
+  * with `schedule.enabled`, the upload is private and YouTube publishes it at the next `schedule` slot
+    (lets the PC upload in its own daytime while videos go public in the audience's morning)
 """
 import datetime, threading, time
 from zoneinfo import ZoneInfo
@@ -34,6 +36,31 @@ def candidates():
 
 def status():
     return dict(_state)
+
+
+def next_publish_slot(cfg, now=None):
+    """With `schedule.enabled`, uploads go up as private videos that YouTube makes public at the next free slot:
+    every `gap_minutes` between `schedule.hours` in `schedule.timezone` (e.g. US morning), at least `lead_minutes`
+    from now and never closer than `gap_minutes` to another scheduled clip. None = no free slot in `max_days_ahead`."""
+    s = cfg.get("schedule") or {}
+    tz = ZoneInfo(s.get("timezone", "America/New_York"))
+    a, b = int(s["hours"][0]), int(s["hours"][1])
+    gap = datetime.timedelta(minutes=s.get("gap_minutes", 40))
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    earliest = now + datetime.timedelta(minutes=s.get("lead_minutes", 30))
+    taken = [datetime.datetime.fromisoformat(c["publish_at"].replace("Z", "+00:00"))
+             for c in store.all_clips() if c.get("publish_at")]
+    taken = [t for t in taken if t > now - gap]
+    day = earliest.astimezone(tz).date()
+    for _ in range(int(s.get("max_days_ahead", 3)) + 1):
+        t = datetime.datetime.combine(day, datetime.time(a), tz)
+        end = datetime.datetime.combine(day, datetime.time(b), tz)
+        while t < end:
+            if t >= earliest and all(abs(t - x) >= gap for x in taken):
+                return t
+            t += gap
+        day += datetime.timedelta(days=1)
+    return None
 
 
 def tick():
@@ -70,8 +97,14 @@ def tick():
     if not pick:
         _state["msg"] = "on - nothing to post"
         return
-    _state["msg"] = f"posting {pick['id']}"
-    poster.post(pick["id"], auto=True)
+    publish_at = None
+    if (cfg.get("schedule") or {}).get("enabled"):
+        publish_at = next_publish_slot(cfg)
+        if not publish_at:
+            _state["msg"] = "schedule full - every publish slot is taken"
+            return
+    _state["msg"] = f"posting {pick['id']}" + (f" (goes public {publish_at.strftime('%b %d %H:%M')} {publish_at.tzname()})" if publish_at else "")
+    poster.post(pick["id"], auto=True, publish_at=publish_at)
 
 
 def loop():

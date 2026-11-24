@@ -5,7 +5,8 @@ from . import config, store, youtube, thumbnails, generate
 _lock = threading.Lock()
 
 
-def post(cid, auto=False):
+def post(cid, auto=False, publish_at=None):
+    """publish_at: aware datetime -> upload private and let YouTube make it public then."""
     if not _lock.acquire(blocking=False):
         raise RuntimeError("Another upload is in progress")
     try:
@@ -23,7 +24,7 @@ def post(cid, auto=False):
             raise RuntimeError("Skipped by content check: " + ("unsafe" if ai.get("safe") is False else "not about GTA 6")
                                + (f" ({ai['reason']})" if ai.get("reason") else ""))
         store.update(cid, post={"state": "uploading", "pct": 0, "auto": auto})
-        youtube.upload(cid, progress=lambda p: store.update(cid, post={"state": "uploading", "pct": p, "auto": auto}))
+        youtube.upload(cid, publish_at=publish_at, progress=lambda p: store.update(cid, post={"state": "uploading", "pct": p, "auto": auto}))
         store.update(cid, post={"state": "done", "pct": 100, "auto": auto})
     except Exception as e:
         store.update(cid, post={"state": "error", "error": str(e)[:300], "pct": 0, "auto": auto, "at": time.time()})

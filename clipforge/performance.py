@@ -64,7 +64,8 @@ def refresh():
             except Exception as e:                       # e.g. YouTube Analytics API not enabled in the Cloud project
                 a_status = "error: " + str(e)[:200]
                 log.warning("analytics unavailable: %s", e)
-        tz = ZoneInfo(config.load().get("autopost", {}).get("timezone", "America/New_York"))
+        ap = config.load().get("autopost", {})   # report times in the audience's zone, not the uploading PC's
+        tz = ZoneInfo((ap.get("schedule") or {}).get("timezone") or ap.get("audience_timezone") or "America/New_York")
         now = datetime.datetime.now(datetime.timezone.utc)
         hist = _read(HIST, {})
         rows = []
@@ -74,7 +75,7 @@ def refresh():
             if s is None:
                 rows.append({"cid": c["id"], "id": vid, "title": c["title"], "removed": True})
                 continue
-            posted = datetime.datetime.fromisoformat(c.get("uploaded_at") or s["published"].replace("Z", "+00:00"))
+            posted = datetime.datetime.fromisoformat((c.get("publish_at") or c.get("uploaded_at") or s["published"]).replace("Z", "+00:00"))
             posted = posted.astimezone(datetime.timezone.utc) if posted.tzinfo else posted.astimezone().astimezone(datetime.timezone.utc)
             hours = max(1.0, (now - posted).total_seconds() / 3600)
             a = per.get(vid, {})

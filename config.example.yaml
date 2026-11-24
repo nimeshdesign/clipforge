@@ -115,6 +115,13 @@ autopost:
   min_viral: 7
   post_hours: [10, 22]     # only post between these hours (24h clock) in `timezone`; remove for any time
   timezone: America/New_York
+  schedule:                 # upload private, YouTube makes it public at the next slot in the audience's time
+    enabled: false
+    timezone: America/New_York
+    hours: [9, 16]          # publish slots between these hours
+    gap_minutes: 40
+    lead_minutes: 30        # never schedule sooner than this
+    max_days_ahead: 3
 agent:
   model: gemini-3-flash-preview
   min_hype: 7
