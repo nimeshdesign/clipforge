@@ -115,6 +115,9 @@ autopost:
   min_viral: 7
   post_hours: [10, 22]     # only post between these hours (24h clock) in `timezone`; remove for any time
   timezone: America/New_York
+  max_per_source: 2          # clips from one source video, ever
+  max_per_source_day: 1      # ...and per 24 hours
+  vary_creator: true         # prefer a different creator than the last post
   schedule:                 # upload private, YouTube makes it public at the next slot in the audience's time
     enabled: false
     timezone: America/New_York
@@ -122,6 +125,7 @@ autopost:
     gap_minutes: 40
     lead_minutes: 30        # never schedule sooner than this
     max_days_ahead: 3
+    ab_test: false           # alternate scheduled / direct (public now) uploads to compare them
 agent:
   model: gemini-3-flash-preview
   min_hype: 7

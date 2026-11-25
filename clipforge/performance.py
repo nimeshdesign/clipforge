@@ -88,6 +88,7 @@ def refresh():
                 "posted": posted.astimezone(tz).isoformat(timespec="minutes"), "post_hour": posted.astimezone(tz).hour,
                 "age_hours": round(hours, 1), "duration": round(c.get("duration") or 0, 1), "ai_score": c.get("viral"),
                 "auto": bool((c.get("post") or {}).get("auto")), "privacy": s["privacy"],
+                "method": "scheduled" if c.get("publish_at") else "direct", "ab": c.get("ab"),
                 "views": s["views"], "likes": s["likes"], "comments": s["comments"],
                 "views_per_hour": round(s["views"] / hours, 1),
                 "like_rate": round(100 * s["likes"] / s["views"], 2) if s["views"] else 0,
@@ -108,6 +109,8 @@ def refresh():
                     "Source channel": _group(live, lambda r: r["source"]),
                     "Clip length": _group(live, lambda r: _length_bucket(r["duration"])),
                     f"Posting time ({tz.key.split('/')[-1].replace('_', ' ')})": _group(live, lambda r: _hour_bucket(r["post_hour"])),
+                    "Publish method": _group(live, lambda r: r.get("method") or "direct"),
+                    "A/B test (scheduled vs direct)": _group([r for r in live if r.get("ab")], lambda r: r["ab"]),
                     "AI score": _group(live, lambda r: f"{int(r['ai_score'])}/10" if r["ai_score"] is not None else "not rated"),
                 }}
         _write(CACHE, data)

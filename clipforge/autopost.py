@@ -6,6 +6,9 @@
   * if nothing was posted for `idle_hours` and the system is online, the best remaining clip is posted anyway
   * with `schedule.enabled`, the upload is private and YouTube publishes it at the next `schedule` slot
     (lets the PC upload in its own daytime while videos go public in the audience's morning)
+  * `schedule.ab_test` alternates scheduled and direct (public now) uploads; Performance compares them
+  * variety: at most `max_per_source` clips per source video (`max_per_source_day` per 24h), and a different
+    creator than the last post when possible
 """
 import datetime, threading, time
 from zoneinfo import ZoneInfo
@@ -32,6 +35,51 @@ def candidates():
             continue
         out.append(c)
     return sorted(out, key=rank, reverse=True)
+
+
+def _src_key(c):
+    """One key per source video. Live chunks share the channel's /live URL, so a stream counts per day."""
+    s = c.get("source") or {}
+    key = (s.get("url") or c.get("source_file") or c["id"]).strip()
+    if (s.get("channel") or "").strip().lower() == "live":
+        key += "#" + (c.get("created") or "")[:10]
+    return key
+
+
+def _creator(c):
+    s = c.get("source") or {}
+    return (c.get("stream") or s.get("channel") or "").strip().lower().removesuffix(" live").removesuffix(" gta 6")
+
+
+def diversify(cands, cfg):
+    """Variety rules, so the channel doesn't look repetitive to YouTube:
+    * at most `max_per_source` clips from one source video ever, and `max_per_source_day` in 24h
+    * prefer a different creator than the last post (falls back to the best clip if every candidate shares it)."""
+    posted = [c for c in store.all_clips() if c.get("status") == "posted"]
+    day_ago = datetime.datetime.now() - datetime.timedelta(hours=24)
+    total, today = {}, {}
+    for c in posted:
+        k = _src_key(c)
+        total[k] = total.get(k, 0) + 1
+        try:
+            if datetime.datetime.fromisoformat(c.get("uploaded_at") or "") > day_ago:
+                today[k] = today.get(k, 0) + 1
+        except ValueError:
+            pass
+    ok = [c for c in cands if total.get(_src_key(c), 0) < cfg.get("max_per_source", 2)
+          and today.get(_src_key(c), 0) < cfg.get("max_per_source_day", 1)]
+    last = max(posted, key=lambda c: c.get("uploaded_at") or "", default=None)
+    if last and cfg.get("vary_creator", True):
+        other = [c for c in ok if _creator(c) != _creator(last)]
+        ok = other + [c for c in ok if _creator(c) == _creator(last)]   # stable: best other-creator clip first
+    return ok
+
+
+def ab_method(cfg):
+    """A/B test: alternate 'scheduled' (US-morning publishAt) and 'direct' (public right away) uploads."""
+    posted = [c for c in store.all_clips() if c.get("ab")]
+    last = max(posted, key=lambda c: c.get("uploaded_at") or "", default=None)
+    return "direct" if last and last["ab"] == "scheduled" else "scheduled"
 
 
 def status():
@@ -89,7 +137,11 @@ def tick():
     if last and now - last < datetime.timedelta(minutes=cfg["min_gap_minutes"]):
         _state["msg"] = "waiting between posts"
         return
-    cands = candidates()
+    day_max = config.load()["youtube"]["max_uploads_per_day"]
+    if len(youtube.posts_since(24)) >= day_max:
+        _state["msg"] = f"daily limit reached ({day_max} in 24h)"
+        return
+    cands = diversify(candidates(), cfg)
     approved = [c for c in cands if c.get("approved")]
     idle = last is None or now - last > datetime.timedelta(hours=cfg["idle_hours"])
     good = [c for c in cands if (c.get("viral") or 0) >= cfg.get("min_viral", 7)] if cfg.get("auto_pick") else []
@@ -97,14 +149,18 @@ def tick():
     if not pick:
         _state["msg"] = "on - nothing to post"
         return
-    publish_at = None
-    if (cfg.get("schedule") or {}).get("enabled"):
+    publish_at, sched = None, cfg.get("schedule") or {}
+    method = ab_method(cfg) if sched.get("enabled") and sched.get("ab_test") else None
+    if sched.get("enabled") and method != "direct":
         publish_at = next_publish_slot(cfg)
         if not publish_at:
             _state["msg"] = "schedule full - every publish slot is taken"
             return
-    _state["msg"] = f"posting {pick['id']}" + (f" (goes public {publish_at.strftime('%b %d %H:%M')} {publish_at.tzname()})" if publish_at else "")
+    _state["msg"] = f"posting {pick['id']}" + (f" (goes public {publish_at.strftime('%b %d %H:%M')} {publish_at.tzname()})" if publish_at else "") \
+        + (f" [A/B: {method}]" if method else "")
     poster.post(pick["id"], auto=True, publish_at=publish_at)
+    if method:
+        store.update(pick["id"], ab=method)
 
 
 def loop():
