@@ -5,7 +5,9 @@ import json, datetime
 from . import config, store
 
 ANALYTICS_SCOPE = "https://www.googleapis.com/auth/yt-analytics.readonly"   # watch time, % viewed, traffic sources
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", ANALYTICS_SCOPE]
+EDIT_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"   # edit posted videos (e.g. add creator credit)
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", ANALYTICS_SCOPE,
+          EDIT_SCOPE]
 CLIENT = config.SECRETS / "client_secret.json"
 TOKEN = config.SECRETS / "token.json"
 QUOTA = config.DATA / "uploads.json"
@@ -74,12 +76,16 @@ def channel():
     return name
 
 
-def has_analytics():
-    """True when the saved login includes the YouTube Analytics permission (logins made before it was added don't)."""
+def has_scope(scope):
+    """True when the saved login was granted `scope` (logins made before a scope was added lack it)."""
     try:
-        return ANALYTICS_SCOPE in (json.loads(TOKEN.read_text(encoding="utf-8")).get("scopes") or [])
+        return scope in (json.loads(TOKEN.read_text(encoding="utf-8")).get("scopes") or [])
     except Exception:
         return False
+
+
+def has_analytics():
+    return has_scope(ANALYTICS_SCOPE)
 
 
 def video_stats(ids):
@@ -154,7 +160,9 @@ def upload(cid, publish_at=None, progress=None):
             publish_at = publish_at.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         status.update(privacyStatus="private", publishAt=publish_at)
     lang = y.get("language", "en-US")      # tells YouTube which audience/language to recommend the video to
-    body = {"snippet": {"title": meta["title"][:100], "description": meta["description"][:4900],
+    from . import seo
+    desc = seo.with_credit(cfg, meta.get("description", ""), meta.get("source") or {})   # every upload credits the creator
+    body = {"snippet": {"title": meta["title"][:100], "description": desc[:4900],
                         "tags": meta["tags"], "categoryId": y["category_id"],
                         "defaultLanguage": lang, "defaultAudioLanguage": lang}, "status": status}
     media = MediaFileUpload(str(store.folder(cid) / "clip.mp4"), chunksize=4 * 1024 * 1024, resumable=True)
@@ -175,7 +183,8 @@ def upload(cid, publish_at=None, progress=None):
     ts = _times() + [datetime.datetime.now().isoformat(timespec="seconds")]
     QUOTA.write_text(json.dumps({"times": ts[-200:]}), encoding="utf-8")
     return store.update(cid, youtube_id=resp["id"], youtube_url=f"https://youtu.be/{resp['id']}",
-                        uploaded_at=ts[-1], publish_at=publish_at, status="posted", thumb_error=thumb_err)
+                        uploaded_at=ts[-1], publish_at=publish_at, status="posted", thumb_error=thumb_err,
+                        description=desc)
 
 
 if __name__ == "__main__":

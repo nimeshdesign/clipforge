@@ -19,10 +19,51 @@ def _tags_fit(tags, limit=480):
     return out
 
 
-def _credit(cfg, src):
-    if cfg["seo"].get("credit_source") and src.get("url"):
-        return f"\n\nSource: {src.get('title', '')} - {src.get('channel', '')}\n{src['url']}"
-    return ""
+CREDIT_MARK = "🎥 Credit:"
+_OLD_CREDIT = re.compile(r"\n*Source: [^\n]*\nhttps?://\S+\s*$")          # pre-2026-11-24 footer
+_NEW_CREDIT = re.compile(r"^" + re.escape(CREDIT_MARK) + r".*?(\n\n|$)", re.S)
+
+
+def creator(cfg, src):
+    """(name, channel_url) of the creator a clip comes from. Live streams store channel='live' and the stream
+    name as title ("Cinna live"), so they are matched to discover.channels by URL or by name."""
+    url = (src.get("url") or "").strip()
+    chans = (cfg.get("discover") or {}).get("channels") or []
+    for ch in chans:
+        base = ch["url"].rstrip("/")
+        if url.startswith(base):
+            return ch["name"], base
+    name = (src.get("channel") or "").strip()
+    if name.lower() in ("", "live"):
+        name = re.sub(r"\s*(gta ?6\s*)?live$", "", (src.get("title") or "").strip(), flags=re.I).strip()
+    for ch in chans:
+        if ch["name"].lower() == name.lower():
+            return ch["name"], ch["url"].rstrip("/")
+    return name, None
+
+
+def credit_block(cfg, src):
+    """Shown first in the description (above the fold), so the original creator is visible on every Short."""
+    name, chan = creator(cfg, src)
+    url = (src.get("url") or "").strip()
+    if not name and not url:
+        return ""
+    handle = re.search(r"youtube\.com/(@[\w.-]+)", chan or url or "")
+    who = handle.group(1) if handle and handle.group(1).lower().lstrip("@") == name.lower().replace(" ", "") else name
+    lines = [f"{CREDIT_MARK} {who or 'original creator'} - all rights belong to the original creator"]
+    if chan and chan not in url:
+        lines.append(f"📺 Channel: {chan}")
+    if url:
+        lines.append(("🔴 Original stream: " if "/live" in url or "live" == (src.get("channel") or "").strip().lower() else "▶️ Original video: ") + url)
+    return "\n".join(lines) + "\n\n"
+
+
+def with_credit(cfg, description, src):
+    """Idempotent: strips any earlier credit (old footer or new header) and puts the current one on top."""
+    d = _NEW_CREDIT.sub("", _OLD_CREDIT.sub("", description or "")).strip()
+    if not cfg["seo"].get("credit_source", True):
+        return d
+    return (credit_block(cfg, src) + d).strip()
 
 
 def _template(cfg, ctx):
@@ -69,8 +110,9 @@ def generate(ctx, cfg=None):
         title, desc, tags, thumb = _template(cfg, ctx)
     if "#shorts" not in desc.lower() and cfg["clip"]["mode"] == "shorts":
         desc += " #Shorts"
-    return {"title": title[:100], "description": desc + _credit(cfg, ctx["source"]),
-            "tags": _tags_fit(tags + cfg["seo"]["base_tags"]), "thumb_text": thumb}
+    name = creator(cfg, ctx["source"])[0] if cfg["seo"].get("credit_source", True) else ""
+    return {"title": title[:100], "description": with_credit(cfg, desc, ctx["source"]),
+            "tags": _tags_fit(tags + cfg["seo"]["base_tags"] + ([name] if name else [])), "thumb_text": thumb}
 
 
 def generate_title(ctx, cfg=None):
