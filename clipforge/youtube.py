@@ -142,6 +142,15 @@ def posts_since(hours):
     return [t for t in (datetime.datetime.fromisoformat(x) for x in _times()) if t > cut]
 
 
+def posts_today():
+    """Uploads since midnight in the posting time zone (autopost.timezone), so the daily limit resets each day
+    instead of rolling over 24 hours (which pushed every day's posts later and later)."""
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo(config.load().get("autopost", {}).get("timezone") or "UTC")
+    today = datetime.datetime.now(tz).date()
+    return [t for t in (datetime.datetime.fromisoformat(x) for x in _times()) if t.astimezone(tz).date() == today]
+
+
 def last_post():
     ts = _times()
     return datetime.datetime.fromisoformat(ts[-1]) if ts else None
@@ -151,7 +160,7 @@ def upload(cid, publish_at=None, progress=None):
     from googleapiclient.http import MediaFileUpload
     cfg = config.load()
     y = cfg["youtube"]
-    if len(posts_since(24)) >= y["max_uploads_per_day"]:
+    if len(posts_today()) >= y["max_uploads_per_day"]:
         raise RuntimeError(f"Daily upload limit reached ({y['max_uploads_per_day']}). Raise youtube.max_uploads_per_day (API quota ~1,600 units/upload).")
     meta = store.load(cid)
     status = {"privacyStatus": meta.get("privacy") or y["privacy"], "selfDeclaredMadeForKids": y["made_for_kids"]}

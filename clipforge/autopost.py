@@ -142,8 +142,8 @@ def tick():
         _state["msg"] = "waiting between posts"
         return
     day_max = config.load()["youtube"]["max_uploads_per_day"]
-    if len(youtube.posts_since(24)) >= day_max:
-        _state["msg"] = f"daily limit reached ({day_max} in 24h)"
+    if len(youtube.posts_today()) >= day_max:
+        _state["msg"] = f"daily limit reached ({day_max} today)"
         return
     cands = diversify(candidates(), cfg)
     approved = [c for c in cands if c.get("approved")]
