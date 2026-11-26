@@ -232,7 +232,8 @@ def ai_pick(full, score, n, info, cfg, log=print):
                     "peak": a + int(sub.argmax()) if len(sub) else a, "signal": float(sub.max()) if len(sub) else 0.0,
                     "kw": kw_score(text, cfg["keywords"]), "score": round(v / 10, 3), "viral": v,
                     "hook": str(r.get("hook", ""))[:120], "reason": str(r.get("reason", ""))[:120],
-                    "title": str(r.get("title") or "").strip()[:100] or None, "picked_by": "ai"})
+                    "title": str(r.get("title") or "").strip()[:100] or None,
+                    "overlay": str(r.get("overlay") or "").strip()[:60] or None, "picked_by": "ai"})
         if len(out) >= want:
             break
     log(f"AI picker chose {len(out)} clip(s)")

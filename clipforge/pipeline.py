@@ -123,12 +123,15 @@ def process(j):
         cid = f"{stamp}_{slug(src['title'])}_{i:02d}"
         d = store.folder(cid)
         d.mkdir(parents=True, exist_ok=True)
-        render.render(path, w["start"], w["end"], d / "clip.mp4", cfg_run["clip"]["mode"],
-                      w["segments"], cfg_run["clip"]["captions"], lay)
+        cc = cfg_run["clip"]
+        title = w.get("title") or seo.generate_title({"transcript": w["transcript"]}, cfg_run)
+        overlay = (w.get("overlay") or render.hook_text(title)) if cc.get("hook_text", True) else None
+        render.render(path, w["start"], w["end"], d / "clip.mp4", cc["mode"], w["segments"], cc["captions"], lay,
+                      hook=overlay, cta=cc.get("cta_text") or None,
+                      hook_seconds=cc.get("hook_seconds", 2.5), cta_seconds=cc.get("cta_seconds", 2.0))
         dur = round(w["end"] - w["start"], 1)
         subprocess.run([config.FFMPEG, "-y", "-v", "error", "-ss", str(dur * 0.4), "-i", str(d / "clip.mp4"), "-frames:v", "1", "-vf", "scale=360:-2", str(d / "clip.jpg")])
-        title = w.get("title") or seo.generate_title({"transcript": w["transcript"]}, cfg_run)
-        meta = {"title": title, "description": "", "tags": [], "thumb_text": "",
+        meta = {"title": title, "description": "", "tags": [], "thumb_text": "", "overlay": overlay,
                 "picked_by": w.get("picked_by", "signal"), "viral": w.get("viral"), "hook": w.get("hook"), "viral_reason": w.get("reason")}
         meta.update(id=cid, source=src, source_file=str(path.resolve()), peak=w["peak"], ai=None, stream=(j["opts"].get("title") if j["opts"].get("live") else None), stream_url=(j["opts"].get("url") if j["opts"].get("live") else None), status="new", approved=False, generated=False, star=bool(w.get("star")), hype=w.get("hype"), hype_label=w.get("label"), transcript=w["transcript"], start=w["start"], end=w["end"], score=w["score"], signal=round(w.get("signal",0),3), kw=round(w.get("kw",0),3), duration=dur,
                     mode=cfg_run["clip"]["mode"], created=datetime.datetime.now().isoformat(timespec="seconds"))

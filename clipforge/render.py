@@ -25,17 +25,39 @@ def groups(segments, size=3, gap=0.6):
     return out
 
 
-def write_ass(segments, path, vertical=True, margin_v=None):
+def _clean(t):
+    return re.sub(r"\s+", " ", re.sub(r"[{}\\]", "", t or "")).strip()
+
+
+def hook_text(title, max_words=6):
+    """Fallback on-screen hook from a title: drop the 'GTA 6' boilerplate and emoji, keep it short and loud."""
+    t = re.sub(r"(?i)\s*(\(|\b)(in |on )?(gta ?6|gta ?vi)\)?\s*[:!?-]?\s*", " ", title or "")
+    t = re.sub(r"[^\w\s'$,!?.&%-]", "", t).strip(" -:,.")
+    w = t.split()
+    return " ".join(w[:max_words]).upper() + ("..." if len(w) > max_words else "")
+
+
+def write_ass(segments, path, vertical=True, margin_v=None, hook=None, cta=None, duration=None, hook_seconds=2.5, cta_seconds=2.0):
     """Word-accurate captions: each Whisper word start/end drives its own highlight, so text changes exactly
-    when the word is spoken (no interpolation across a segment)."""
+    when the word is spoken (no interpolation across a segment).
+    hook: big title over the first `hook_seconds` (why keep watching); cta: follow line over the last `cta_seconds`."""
     W, H, fs = (1080, 1920, 78) if vertical else (1920, 1080, 58)
     mv = margin_v if margin_v else (480 if vertical else 90)           # stay above the Shorts UI / description overlay
+    top = 190 if vertical else 60                                      # below the Shorts top bar
     head = (f"[Script Info]\nScriptType: v4.00+\nPlayResX: {W}\nPlayResY: {H}\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n"
             "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n"
-            f"Style: D,DejaVu Sans,{fs},{WHITE},{WHITE},&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,5,2,2,60,60,{mv},1\n\n"
+            f"Style: D,DejaVu Sans,{fs},{WHITE},{WHITE},&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,5,2,2,60,60,{mv},1\n"
+            f"Style: H,DejaVu Sans,{int(fs * 1.15)},{YELLOW},{YELLOW},&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,7,3,8,70,70,{top},1\n"
+            f"Style: C,DejaVu Sans,{int(fs * 0.9)},{WHITE},{WHITE},&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,6,3,8,70,70,{top},1\n\n"
             "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n")
-    gs = groups(segments)
     lines = []
+    hook_end = 0.0
+    if hook and _clean(hook):
+        hook_end = min(hook_seconds, duration or hook_seconds)
+        lines.append(f"Dialogue: 1,{_ts(0)},{_ts(hook_end)},H,,0,0,0,,{{\\q0\\fad(120,250)}}{_clean(hook).upper()}")
+    if cta and _clean(cta) and duration and duration - cta_seconds > hook_end + 1:
+        lines.append(f"Dialogue: 1,{_ts(duration - cta_seconds)},{_ts(duration)},C,,0,0,0,,{{\\q0\\fad(200,0)}}{_clean(cta).upper()}")
+    gs = groups(segments or [])
     for gi, g in enumerate(gs):
         texts = [re.sub(r"[{}\\]", "", w["w"]).upper() for w in g]
         nxt = gs[gi + 1][0]["start"] if gi + 1 < len(gs) else 1e9
@@ -56,16 +78,37 @@ def _even(v):
     return int(v) // 2 * 2
 
 
-def render(src, start, end, out, mode="shorts", segments=None, captions=True, layout=None):
+def add_overlays(clip, duration, hook=None, cta=None, hook_seconds=2.5, cta_seconds=2.0):
+    """Burn the hook / follow line onto an already-rendered clip (made before overlays existed).
+    Keeps the original as clip_raw.mp4; re-encodes video only, audio is copied."""
+    clip = Path(clip)
+    raw = clip.with_name("clip_raw.mp4")
+    if not raw.exists():
+        clip.replace(raw)
+    ass = clip.with_name("overlay.ass")
+    write_ass([], ass, True, hook=hook, cta=cta, duration=duration, hook_seconds=hook_seconds, cta_seconds=cta_seconds)
+    cmd = [FFMPEG, "-y", "-v", "error", "-i", raw.name, "-vf", f"ass={ass.name}", "-c:v", "libx264", "-preset", "veryfast",
+           "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", clip.name]
+    r = subprocess.run(cmd, cwd=clip.parent, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if r.returncode:
+        raw.replace(clip)                       # leave the clip as it was
+        raise RuntimeError("overlay failed: " + r.stderr[-300:])
+    return clip
+
+
+def render(src, start, end, out, mode="shorts", segments=None, captions=True, layout=None, hook=None, cta=None,
+           hook_seconds=2.5, cta_seconds=2.0):
     out = Path(out)
     vertical = mode == "shorts"
     cam = (layout or {}).get("cam")
     W, H = (layout or {}).get("size", (1920, 1080))
     ass = None
-    if captions and segments and any(s.get("words") for s in segments):
+    words = captions and segments and any(s.get("words") for s in segments)
+    if words or hook or cta:
         ass = out.with_suffix(".ass")
-        # captions sit on the lower part of the game panel (clear of the Shorts UI)
-        write_ass(segments, ass, vertical, margin_v=1920 - GAME_H + 40 if cam else 480)
+        # captions sit on the lower part of the game panel (clear of the Shorts UI); hook / follow line at the top
+        write_ass(segments if words else [], ass, vertical, margin_v=1920 - GAME_H + 40 if cam else 480,
+                  hook=hook, cta=cta, duration=end - start, hook_seconds=hook_seconds, cta_seconds=cta_seconds)
     sub = f",ass={ass.name}" if ass else ""
     if vertical and cam:
         # game: punch-in on the centre, filling the top panel (no letterbox, no blur)

@@ -11,6 +11,6 @@ A great clip:
 - Is {lo}-{hi} seconds long, ideally about {tgt}.
 
 Return up to {n} non-overlapping clips, best first. Leave out anything below 5/10. Returning fewer clips, or [], is fine.
-Reply ONLY with JSON: [{"start": seconds, "end": seconds, "score": 0-10, "hook": "opening line, max 12 words", "reason": "why it works, max 12 words", "title": "Shorts title, max 70 chars, contains 'GTA 6', no clickbait lies"}]
+Reply ONLY with JSON: [{"start": seconds, "end": seconds, "score": 0-10, "hook": "opening line, max 12 words", "reason": "why it works, max 12 words", "title": "Shorts title, max 70 chars, contains 'GTA 6', no clickbait lies", "overlay": "big on-screen text for the first 2 seconds: 2-5 words that tease the payoff without spoiling it, e.g. WAIT FOR THE ENDING / HE DID NOT EXPECT THIS / $2M CAR GONE WRONG; no emoji, no 'GTA 6'"}]
 
 Transcript:

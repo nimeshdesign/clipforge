@@ -9,6 +9,10 @@ clip:
   captions: true
   min_score: 0.25
   hook_lead_seconds: 4     # loudness fallback: seconds kept before the peak, so the clip opens on the action
+  hook_text: true           # big hook title over the first seconds (AI-written, or from the title)
+  hook_seconds: 2.5
+  cta_text: Follow for daily GTA 6 secrets   # follow line over the last seconds; empty = off
+  cta_seconds: 2.0
 picker:
   mode: ai                 # ai = an LLM reads the transcript and picks hook->payoff clips; signal = loudness only (free)
   model: gemini-3-flash-preview
@@ -90,6 +94,10 @@ youtube:
   language: en-US          # default language of every upload (helps YouTube recommend to US viewers)
   auto_upload: false
   max_uploads_per_day: 6
+  first_comments:           # one is posted on each new upload once it's public (pin the good ones in Studio)
+  - Would you try this in GTA 6? 👇 Follow for a new GTA 6 secret every day 🔔
+  - Did you know this was in GTA 6? Yes or no 👇 Follow for daily GTA 6 clips 🔔
+  - Rate this moment 1-10 👇 More GTA 6 secrets every day, hit follow 🔔
 thumbnail:
   enabled: true
   provider: auto

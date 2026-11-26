@@ -182,9 +182,41 @@ def upload(cid, publish_at=None, progress=None):
             thumb_err = str(e)[:200]
     ts = _times() + [datetime.datetime.now().isoformat(timespec="seconds")]
     QUOTA.write_text(json.dumps({"times": ts[-200:]}), encoding="utf-8")
+    if y.get("first_comments"):
+        store.update(cid, want_comment=True)          # posted by post_pending_comments() once the video is public
     return store.update(cid, youtube_id=resp["id"], youtube_url=f"https://youtu.be/{resp['id']}",
                         uploaded_at=ts[-1], publish_at=publish_at, status="posted", thumb_error=thumb_err,
                         description=desc)
+
+
+def post_pending_comments(limit=3):
+    """First comment from the channel on each new upload (youtube.first_comments, one picked per video), once the
+    video is public. YouTube's API cannot pin comments - pin the good ones in Studio. Needs the edit permission."""
+    import random
+    y = config.load()["youtube"]
+    texts = y.get("first_comments") or []
+    if not texts or not has_scope(EDIT_SCOPE):
+        return 0
+    now = datetime.datetime.now(datetime.timezone.utc)
+    done = 0
+    for c in store.all_clips():
+        if done >= limit:
+            break
+        if not c.get("want_comment") or c.get("comment_id") or not c.get("youtube_id"):
+            continue
+        pa = c.get("publish_at")
+        if pa and datetime.datetime.fromisoformat(pa.replace("Z", "+00:00")) > now:
+            continue                                  # still private until its scheduled time
+        if (c.get("comment_tries") or 0) >= 3:
+            continue
+        try:
+            r = _yt().commentThreads().insert(part="snippet", body={"snippet": {"videoId": c["youtube_id"],
+                "topLevelComment": {"snippet": {"textOriginal": random.choice(texts)}}}}).execute()
+            store.update(c["id"], comment_id=r["id"])
+            done += 1
+        except Exception as e:
+            store.update(c["id"], comment_tries=(c.get("comment_tries") or 0) + 1, comment_error=str(e)[:200])
+    return done
 
 
 if __name__ == "__main__":

@@ -113,6 +113,10 @@ def next_publish_slot(cfg, now=None):
 
 def tick():
     cfg = config.load()["autopost"]
+    try:
+        youtube.post_pending_comments()
+    except Exception as e:
+        import logging; logging.getLogger("clipforge").warning("first comment failed: %s", e)
     if not cfg["enabled"]:
         _state["msg"] = "off"
         return
